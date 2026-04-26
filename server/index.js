@@ -271,6 +271,6 @@ app.post('/analyze-food-photo', rateLimit, async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`AI server listening on http://0.0.0.0:${PORT} (LAN: use your PC IP + port)`);
+app.listen(PORT || 3000, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });
