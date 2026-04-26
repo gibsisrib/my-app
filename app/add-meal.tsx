@@ -1,23 +1,25 @@
+import { useNavigation } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Beer, Utensils, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { useCalories } from '../CaloriesContext';
 import { RoseTheme } from '../constants/RoseTheme';
 import { getApiBaseUrl } from '../utils/getApiBaseUrl';
+import { safeImpact, safeNotification, safeSelection } from '../utils/safeHaptics';
 
 type WizardStep = 'describe' | 'photo' | 'analyzing' | 'results';
 
@@ -30,6 +32,7 @@ const imagePickerOptions: ImagePicker.ImagePickerOptions = {
 };
 
 export default function AddMealScreen() {
+  const navigation = useNavigation();
   const { id } = useLocalSearchParams();
   const isEdit = Boolean(id);
   const { addEntry, updateEntry, entries } = useCalories();
@@ -87,7 +90,7 @@ export default function AddMealScreen() {
       setFieldErrors(nextErrors);
       setErrorMessage('Please fix the highlighted fields.');
       setShowError(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeNotification(Haptics.NotificationFeedbackType.Error);
       return;
     }
     setFieldErrors({});
@@ -103,7 +106,7 @@ export default function AddMealScreen() {
       addEntry(trimmedName, kcal, type, notes, null, p, c, f);
     }
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    safeNotification(Haptics.NotificationFeedbackType.Success);
     router.back();
   };
 
@@ -149,6 +152,11 @@ export default function AddMealScreen() {
       data = {};
     }
     if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(
+          'Server returned 404 for /analyze-meal. Set EXPO_PUBLIC_API_BASE_URL to your meal API origin only (e.g. https://YOUR-SERVICE.up.railway.app) — no trailing slash, no /analyze-meal on the end, and not your Expo URL (not :8081).'
+        );
+      }
       const serverMsg =
         typeof data.error === 'string'
           ? data.error
@@ -157,7 +165,7 @@ export default function AddMealScreen() {
       throw new Error(detail ? `${serverMsg} ${detail}` : serverMsg);
     }
     applyAiMealPayload(data as Parameters<typeof applyAiMealPayload>[0]);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    safeNotification(Haptics.NotificationFeedbackType.Success);
   };
 
   const handleEstimateMealWithAi = async () => {
@@ -166,7 +174,7 @@ export default function AddMealScreen() {
     if (!desc && !img) {
       setErrorMessage('Describe your meal, or take an AI photo first — then tap Estimate.');
       setShowError(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeNotification(Haptics.NotificationFeedbackType.Error);
       return;
     }
     setIsAnalyzing(true);
@@ -188,7 +196,7 @@ export default function AddMealScreen() {
           : msg || "AI couldn't estimate this meal. Try again."
       );
       setShowError(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeNotification(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsAnalyzing(false);
     }
@@ -225,7 +233,7 @@ export default function AddMealScreen() {
             : msg || "Oops! AI couldn't analyze the photo."
         );
         setShowError(true);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        safeNotification(Haptics.NotificationFeedbackType.Error);
       } finally {
         setIsAnalyzing(false);
       }
@@ -241,7 +249,7 @@ export default function AddMealScreen() {
     const result = await ImagePicker.launchImageLibraryAsync(imagePickerOptions);
     if (!result.canceled && result.assets?.[0]?.base64) {
       setLastMealPhotoBase64(result.assets[0].base64);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      safeImpact(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
@@ -254,7 +262,7 @@ export default function AddMealScreen() {
     const result = await ImagePicker.launchCameraAsync(imagePickerOptions);
     if (!result.canceled && result.assets?.[0]?.base64) {
       setLastMealPhotoBase64(result.assets[0].base64);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      safeImpact(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
@@ -264,7 +272,7 @@ export default function AddMealScreen() {
     if (!desc && !img) {
       setErrorMessage('Add a description on the last step, or a photo — your AI needs at least one.');
       setShowError(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeNotification(Haptics.NotificationFeedbackType.Error);
       return;
     }
     setShowError(false);
@@ -289,14 +297,20 @@ export default function AddMealScreen() {
           : msg || "AI couldn't estimate this meal. Try again."
       );
       setShowError(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeNotification(Haptics.NotificationFeedbackType.Error);
       setWizardStep('photo');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const headerClose = () => router.back();
+  const headerClose = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
 
   if (isEdit) {
     return (
@@ -343,7 +357,7 @@ export default function AddMealScreen() {
               <TouchableOpacity
                 style={styles.actionPillFull}
                 onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  safeImpact(Haptics.ImpactFeedbackStyle.Medium);
                   handleAiPhotoScan();
                 }}
                 disabled={isAnalyzing}
@@ -354,7 +368,7 @@ export default function AddMealScreen() {
             <TouchableOpacity
               style={[styles.aiEstimateButton, isAnalyzing && styles.aiEstimateButtonDisabled]}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                safeImpact(Haptics.ImpactFeedbackStyle.Medium);
                 handleEstimateMealWithAi();
               }}
               disabled={isAnalyzing || (!notes.trim() && !lastMealPhotoBase64)}
@@ -369,7 +383,7 @@ export default function AddMealScreen() {
             <TouchableOpacity
               style={[styles.typeButton, type === 'meal' ? styles.typeButtonActive : styles.typeButtonInactive]}
               onPress={() => {
-                Haptics.selectionAsync();
+                safeSelection();
                 setType('meal');
               }}
             >
@@ -379,7 +393,7 @@ export default function AddMealScreen() {
             <TouchableOpacity
               style={[styles.typeButton, type === 'drink' ? styles.typeButtonActive : styles.typeButtonInactive]}
               onPress={() => {
-                Haptics.selectionAsync();
+                safeSelection();
                 setType('drink');
               }}
             >
@@ -504,7 +518,7 @@ export default function AddMealScreen() {
           <TouchableOpacity
             style={[styles.submitButton, { marginTop: 24 }]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              safeImpact(Haptics.ImpactFeedbackStyle.Medium);
               setShowError(false);
               setWizardStep('photo');
             }}
@@ -540,7 +554,7 @@ export default function AddMealScreen() {
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={() => {
-                  Haptics.selectionAsync();
+                  safeSelection();
                   setLastMealPhotoBase64(null);
                 }}
               >
@@ -561,7 +575,7 @@ export default function AddMealScreen() {
           <TouchableOpacity
             style={[styles.secondaryButton, { marginTop: 16 }]}
             onPress={() => {
-              Haptics.selectionAsync();
+              safeSelection();
               setLastMealPhotoBase64(null);
               setWizardStep('describe');
             }}
@@ -571,7 +585,7 @@ export default function AddMealScreen() {
           <TouchableOpacity
             style={[styles.submitButton, { marginTop: 28 }]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              safeImpact(Haptics.ImpactFeedbackStyle.Medium);
               void runWizardAnalysis();
             }}
             disabled={isAnalyzing}
