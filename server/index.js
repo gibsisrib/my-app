@@ -4,7 +4,7 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 8787;
+const PORT = process.env.PORT;
 
 app.use(cors());
 app.use(express.json({ limit: '8mb' }));
@@ -243,7 +243,13 @@ app.post('/analyze-meal', rateLimit, async (req, res) => {
     });
   }
 });
+app.get("/", (req, res) => {
+  res.send("Server is alive");
+});
 
+app.get("/health", (req, res) => {
+  res.json({ ok: true });
+});
 app.post('/analyze-food-photo', rateLimit, async (req, res) => {
   try {
     const imageBase64 = sanitizeBase64(req.body?.imageBase64);
