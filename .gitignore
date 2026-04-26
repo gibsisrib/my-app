@@ -30,8 +30,12 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files (never commit secrets)
+.env
 .env*.local
+
+# App Store screenshot prep (generated; put originals in app-store-raw yourself)
+app-store-out/
 
 # typescript
 *.tsbuildinfo

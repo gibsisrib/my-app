@@ -1,112 +1,239 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { Calendar, Edit2, Trash2 } from 'lucide-react-native';
+import { useMemo } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCalories } from '../../CaloriesContext';
+import { RoseTheme } from '../../constants/RoseTheme';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+interface MealEntry {
+  id: string;
+  name: string;
+  calories: number;
+  type: 'drink' | 'meal';
+  timestamp: number;
+  date: string;
+}
 
-export default function TabTwoScreen() {
+interface GroupedEntries {
+  [date: string]: MealEntry[];
+}
+
+const getMealEmoji = (type?: string): string => {
+  return type === 'drink' ? '🥤' : '🥗';
+};
+
+interface MealCardProps {
+  meal: MealEntry;
+  index: number;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+const MealCard: React.FC<MealCardProps> = ({ meal, index, onEdit, onDelete }) => {
+  const formatTime = (ts: number) => {
+    if (!ts) return '';
+    return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <View key={meal.id || index} style={styles.logItem}>
+      <View style={styles.iconBox}>
+        <Text style={{ fontSize: 20 }}>{getMealEmoji(meal.type)}</Text>
+      </View>
+      <View style={styles.logItemContent}>
+        <Text style={styles.logItemName} numberOfLines={1}>
+          {meal.name}
+        </Text>
+        <Text style={styles.logItemType}>
+          {meal.type ? meal.type.toUpperCase() : 'MEAL'} • {formatTime(meal.timestamp)}
+        </Text>
+      </View>
+      <View style={styles.logItemRight}>
+        <Text style={styles.logItemCalories}>
+          {meal.calories} <Text style={styles.kcalText}>kcal</Text>
+        </Text>
+      </View>
+      <View style={styles.actionButtons}>
+        <TouchableOpacity onPress={() => onEdit(meal.id)} style={styles.actionButton}>
+          <Edit2 size={16} color={RoseTheme.colors.textMuted} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => onDelete(meal.id)} style={styles.actionButton}>
+          <Trash2 size={16} color={RoseTheme.colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+export default function HistoryScreen() {
+  const { entries, deleteEntry } = useCalories();
+
+  const { grouped, dates } = useMemo(() => {
+    const groupedData: GroupedEntries = (entries as MealEntry[]).reduce((acc, entry) => {
+      if (!acc[entry.date]) acc[entry.date] = [];
+      acc[entry.date].push(entry);
+      return acc;
+    }, {} as GroupedEntries);
+
+    const sortedDates = Object.keys(groupedData).sort((a, b) => b.localeCompare(a));
+    return { grouped: groupedData, dates: sortedDates };
+  }, [entries]);
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>History</Text>
+        <Text style={styles.subtitle}>All your past logs</Text>
+      </View>
+      <ScrollView contentContainerStyle={styles.content}>
+        {dates.length === 0 ? (
+          <View style={styles.emptyState}>
+             <Calendar size={48} color={RoseTheme.colors.gray50} />
+             <Text style={styles.emptyStateText}>No history yet.</Text>
+          </View>
+        ) : (
+          dates.map(date => {
+            const dayEntries = [...grouped[date]].reverse();
+            const dayTotal = dayEntries.reduce((sum, e) => sum + e.calories, 0);
+            return (
+              <View key={date} style={styles.dateGroup}>
+                <View style={styles.dateHeader}>
+                  <Text style={styles.dateText}>{date}</Text>
+                  <Text style={styles.dateTotal}>{dayTotal} kcal</Text>
+                </View>
+                {dayEntries.map((meal, index) => (
+                  <MealCard
+                    key={meal.id || index}
+                    meal={meal}
+                    index={index}
+                    onEdit={(id) => router.push({ pathname: '/add-meal', params: { id } })}
+                    onDelete={deleteEntry}
+                  />
+                ))}
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    backgroundColor: RoseTheme.colors.background,
   },
-  titleContainer: {
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: RoseTheme.colors.gray50,
+  },
+  title: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 28,
+    color: RoseTheme.colors.text,
+  },
+  subtitle: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 16,
+    color: RoseTheme.colors.textMuted,
+  },
+  content: {
+    padding: 24,
+    paddingBottom: 80,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateText: {
+    marginTop: 16,
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 16,
+    color: RoseTheme.colors.textMuted,
+  },
+  dateGroup: {
+    marginBottom: 32,
+  },
+  dateHeader: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 8,
+  },
+  dateText: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 16,
+    color: RoseTheme.colors.text,
+  },
+  dateTotal: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 14,
+    color: RoseTheme.colors.primary,
+  },
+  logItem: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: RoseTheme.colors.border,
+    borderRadius: 24,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    shadowColor: RoseTheme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  iconBox: {
+    width: 48,
+    height: 48,
+    backgroundColor: RoseTheme.colors.iconBackground,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  logItemContent: {
+    flex: 1,
+  },
+  logItemName: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 14,
+    color: RoseTheme.colors.text,
+  },
+  logItemType: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 10,
+    color: RoseTheme.colors.textMuted,
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  logItemRight: {
+    alignItems: 'flex-end',
+  },
+  logItemCalories: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 16,
+    color: RoseTheme.colors.primary,
+  },
+  kcalText: {
+    fontSize: 10,
+    opacity: 0.6,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    marginLeft: 8,
+  },
+  actionButton: {
+    padding: 8,
   },
 });
+

@@ -1,0 +1,706 @@
+import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Beer, Utensils, X } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useCalories } from '../CaloriesContext';
+import { RoseTheme } from '../constants/RoseTheme';
+import { getApiBaseUrl } from '../utils/getApiBaseUrl';
+
+export default function AddMealScreen() {
+  const { id } = useLocalSearchParams();
+  const { addEntry, updateEntry, entries, favorites, removeFavorite } = useCalories();
+
+  const [type, setType] = useState('meal');
+  const [name, setName] = useState('');
+  const [calories, setCalories] = useState('');
+  const [protein, setProtein] = useState('');
+  const [carbs, setCarbs] = useState('');
+  const [fats, setFats] = useState('');
+  const [notes, setNotes] = useState('');
+  /** Last AI photo scan (base64) so text-only "Estimate" can combine with it later */
+  const [lastMealPhotoBase64, setLastMealPhotoBase64] = useState<string | null>(null);
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showError, setShowError] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; calories?: string }>({});
+
+  useEffect(() => {
+    if (id) {
+      const entry = entries.find((e: any) => e.id === id);
+      if (entry) {
+        setType(entry.type || 'meal');
+        setName(entry.name);
+        setCalories(entry.calories.toString());
+        setProtein(entry.protein?.toString() || '');
+        setCarbs(entry.carbs?.toString() || '');
+        setFats(entry.fats?.toString() || '');
+        setNotes(entry.notes || '');
+        setLastMealPhotoBase64(null);
+      }
+    }
+  }, [id, entries]);
+
+  const recentMeals = entries
+    ? entries
+        .slice()
+        .reverse()
+        .reduce((acc: any[], current: any) => {
+          const x = acc.find(item => item.name.toLowerCase() === current.name.toLowerCase());
+          if (!x && current.name) {
+            return acc.concat([current]);
+          } else {
+            return acc;
+          }
+        }, [])
+        .slice(0, 8)
+    : [];
+
+  const handleSubmit = () => {
+    const trimmedName = name.trim();
+    const kcal = parseInt(calories);
+
+    const nextErrors: { name?: string; calories?: string } = {};
+    if (!trimmedName) {
+      nextErrors.name = 'Add a short meal title.';
+    }
+    if (isNaN(kcal)) {
+      nextErrors.calories = 'Calories are required.';
+    } else if (kcal < 0) {
+      nextErrors.calories = 'Calories must be 0 or higher.';
+    } else if (kcal > 10000) {
+      nextErrors.calories = 'Please enter a realistic calorie value (0-10000).';
+    }
+
+    if (nextErrors.name || nextErrors.calories) {
+      setFieldErrors(nextErrors);
+      setErrorMessage('Please fix the highlighted fields.');
+      setShowError(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+    setFieldErrors({});
+    setShowError(false);
+
+    const p = parseInt(protein) || 0;
+    const c = parseInt(carbs) || 0;
+    const f = parseInt(fats) || 0;
+
+    if (id) {
+      updateEntry(id, { name: trimmedName, calories: kcal, protein: p, carbs: c, fats: f, type, notes });
+    } else {
+      addEntry(trimmedName, kcal, type, notes, null, p, c, f);
+    }
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    router.back();
+  };
+
+  const applyAiMealPayload = (data: {
+    name?: string;
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fats?: number;
+    type?: string;
+  }) => {
+    if (typeof data.name === 'string' && data.name.trim()) setName(data.name.trim());
+    const roundOrEmpty = (n: number | undefined, setter: (s: string) => void) => {
+      if (typeof n !== 'number' || !Number.isFinite(n)) return;
+      setter(String(Math.max(0, Math.round(n))));
+    };
+    roundOrEmpty(data.calories, setCalories);
+    roundOrEmpty(data.protein, setProtein);
+    roundOrEmpty(data.carbs, setCarbs);
+    roundOrEmpty(data.fats, setFats);
+    if (typeof data.type === 'string') {
+      setType(data.type.toLowerCase() === 'drink' ? 'drink' : 'meal');
+    }
+  };
+
+  const callAnalyzeMealApi = async (body: { imageBase64?: string; description?: string }) => {
+    const apiBaseUrl = getApiBaseUrl();
+    if (!apiBaseUrl) {
+      setErrorMessage('Missing API URL. Set EXPO_PUBLIC_API_BASE_URL for your backend.');
+      setShowError(true);
+      throw new Error('Missing API base URL');
+    }
+    const response = await fetch(`${apiBaseUrl}/analyze-meal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const rawText = await response.text();
+    let data: Record<string, unknown> = {};
+    try {
+      data = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      data = {};
+    }
+    if (!response.ok) {
+      const serverMsg =
+        typeof data.error === 'string'
+          ? data.error
+          : `Server error (${response.status})`;
+      const detail = typeof data.detail === 'string' ? data.detail : '';
+      throw new Error(detail ? `${serverMsg} ${detail}` : serverMsg);
+    }
+    applyAiMealPayload(data as Parameters<typeof applyAiMealPayload>[0]);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const handleEstimateMealWithAi = async () => {
+    const desc = notes.trim();
+    const img = lastMealPhotoBase64;
+    if (!desc && !img) {
+      setErrorMessage('Describe your meal, or take an AI photo first — then tap Estimate.');
+      setShowError(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+    setIsAnalyzing(true);
+    setShowError(false);
+    try {
+      const body: { imageBase64?: string; description?: string } = {};
+      if (desc) body.description = desc;
+      if (img) body.imageBase64 = img;
+      await callAnalyzeMealApi(body);
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      const networkish =
+        /network|failed to fetch|load failed|aborted/i.test(msg) ||
+        msg === 'Network request failed';
+      setErrorMessage(
+        networkish
+          ? "Can't reach your meal server. On your phone: use the same Wi‑Fi as your PC, run `npm run server`, allow port 8787 through Windows Firewall, and restart Expo."
+          : msg || "AI couldn't estimate this meal. Try again."
+      );
+      setShowError(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleAiPhotoScan = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      alert('We need camera permission to take a photo of your food.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets && result.assets[0].base64) {
+      const imageBase64 = result.assets[0].base64;
+      setLastMealPhotoBase64(imageBase64);
+      setIsAnalyzing(true);
+      setShowError(false);
+      try {
+        const body: { imageBase64: string; description?: string } = { imageBase64 };
+        const desc = notes.trim();
+        if (desc) body.description = desc;
+        await callAnalyzeMealApi(body);
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : String(e);
+        const networkish =
+          /network|failed to fetch|load failed|aborted/i.test(msg) ||
+          msg === 'Network request failed';
+        setErrorMessage(
+          networkish
+            ? "Can't reach your meal server. Same Wi‑Fi as PC, `npm run server` running, firewall allows 8787, then reload Expo."
+            : msg || "Oops! AI couldn't analyze the photo."
+        );
+        setShowError(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      } finally {
+        setIsAnalyzing(false);
+      }
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
+          <X size={24} color={RoseTheme.colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Platform.OS === 'web' ? 60 : 140 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.title}>Scan or describe</Text>
+        {showError && !!errorMessage && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{errorMessage}</Text>
+            <TouchableOpacity onPress={() => setShowError(false)} style={styles.errorBannerClose}>
+              <X size={16} color="#dc2626" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {favorites && favorites.length > 0 && !id && (
+          <View style={styles.recentSection}>
+            <Text style={styles.label}>FAVORITES ⭐</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentScroll}>
+              {favorites.map((meal: any, index: number) => (
+                <TouchableOpacity
+                  key={meal.id || index}
+                  style={[styles.recentPill, { borderColor: '#fcd34d', backgroundColor: '#fffbeb' }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setName(meal.name);
+                    setCalories(meal.calories.toString());
+                    setProtein(meal.protein?.toString() || '');
+                    setCarbs(meal.carbs?.toString() || '');
+                    setFats(meal.fats?.toString() || '');
+                    setType(meal.type || 'meal');
+                  }}
+                >
+                  <Text style={styles.recentPillIcon}>{meal.type === 'drink' ? '🥤' : '🥗'}</Text>
+                  <Text style={styles.recentPillText}>{meal.name}</Text>
+                  <Text style={styles.recentPillKcal}>{meal.calories}</Text>
+                  <TouchableOpacity
+                    style={styles.favoriteRemoveButton}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      removeFavorite(meal.id);
+                    }}
+                  >
+                    <X size={12} color={RoseTheme.colors.textMuted} />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {recentMeals.length > 0 && !id && (
+          <View style={styles.recentSection}>
+            <Text style={styles.label}>RECENTLY ADDED</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentScroll}>
+              {recentMeals.map((meal: any, index: number) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.recentPill}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setName(meal.name);
+                    setCalories(meal.calories.toString());
+                    setType(meal.type || 'meal');
+                  }}
+                >
+                  <Text style={styles.recentPillIcon}>{meal.type === 'drink' ? '🥤' : '🥗'}</Text>
+                  <Text style={styles.recentPillText}>{meal.name}</Text>
+                  <Text style={styles.recentPillKcal}>{meal.calories}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>DESCRIBE YOUR MEAL</Text>
+          <Text style={styles.aiFieldHint}>
+            Write what you ate, then use Estimate — or take a photo. Notes here are also sent with AI Photo Scan for
+            extra detail (sauce, swaps, portions).
+          </Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="e.g. Chipotle chicken bowl, double rice, no sour cream…"
+            placeholderTextColor={RoseTheme.colors.textMuted}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            numberOfLines={4}
+          />
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.actionPillFull}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                handleAiPhotoScan();
+              }}
+              disabled={isAnalyzing}
+            >
+              <Text style={styles.actionPillText}>{isAnalyzing ? 'Analyzing…' : 'AI photo scan'}</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.aiEstimateButton,
+              isAnalyzing && styles.aiEstimateButtonDisabled,
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              handleEstimateMealWithAi();
+            }}
+            disabled={isAnalyzing || (!notes.trim() && !lastMealPhotoBase64)}
+          >
+            <Text style={styles.aiEstimateButtonText}>
+              {isAnalyzing ? 'Estimating…' : 'Estimate with AI'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.typeSelector}>
+          <TouchableOpacity
+            style={[styles.typeButton, type === 'meal' ? styles.typeButtonActive : styles.typeButtonInactive]}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setType('meal');
+            }}
+          >
+            <Utensils size={32} color={type === 'meal' ? RoseTheme.colors.primary : '#d1d5db'} />
+            <Text style={[styles.typeText, type === 'meal' ? styles.typeTextActive : styles.typeTextInactive]}>MEAL</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.typeButton, type === 'drink' ? styles.typeButtonActive : styles.typeButtonInactive]}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setType('drink');
+            }}
+          >
+            <Beer size={32} color={type === 'drink' ? RoseTheme.colors.primary : '#d1d5db'} />
+            <Text style={[styles.typeText, type === 'drink' ? styles.typeTextActive : styles.typeTextInactive]}>DRINK</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.form}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>MEAL TITLE</Text>
+            <TextInput
+              style={[styles.input, fieldErrors.name ? styles.inputError : null]}
+              placeholder="Filled by AI — you can edit"
+              placeholderTextColor={RoseTheme.colors.textMuted}
+              value={name}
+              onChangeText={(text) => {
+                setName(text);
+                if (fieldErrors.name) {
+                  setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                }
+              }}
+            />
+            {!!fieldErrors.name && <Text style={styles.fieldErrorText}>{fieldErrors.name}</Text>}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>CALORIES</Text>
+            <TextInput
+              style={[styles.input, fieldErrors.calories ? styles.inputError : null]}
+              placeholder="0"
+              placeholderTextColor={RoseTheme.colors.textMuted}
+              value={calories}
+              onChangeText={(text) => {
+                setCalories(text);
+                if (fieldErrors.calories) {
+                  setFieldErrors((prev) => ({ ...prev, calories: undefined }));
+                }
+              }}
+              keyboardType="number-pad"
+            />
+            {!!fieldErrors.calories && <Text style={styles.fieldErrorText}>{fieldErrors.calories}</Text>}
+          </View>
+
+          <View style={[styles.row, { marginTop: 16 }]}>
+            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.label}>PROTEIN (g)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0"
+                placeholderTextColor={RoseTheme.colors.textMuted}
+                value={protein}
+                onChangeText={setProtein}
+                keyboardType="number-pad"
+              />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1, marginHorizontal: 4 }]}>
+              <Text style={styles.label}>CARBS (g)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0"
+                placeholderTextColor={RoseTheme.colors.textMuted}
+                value={carbs}
+                onChangeText={setCarbs}
+                keyboardType="number-pad"
+              />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.label}>FATS (g)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0"
+                placeholderTextColor={RoseTheme.colors.textMuted}
+                value={fats}
+                onChangeText={setFats}
+                keyboardType="number-pad"
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+            <Text style={styles.submitButtonText}>Add to my log</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  row: {
+    flexDirection: 'row',
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 16,
+    alignItems: 'flex-end',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: RoseTheme.colors.gray50,
+  },
+  content: {
+    paddingHorizontal: 32,
+    flexGrow: 1,
+  },
+  title: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 28,
+    color: RoseTheme.colors.text,
+    marginBottom: 24,
+    letterSpacing: -0.5,
+  },
+  recentSection: {
+    marginBottom: 32,
+  },
+  recentScroll: {
+    gap: 12,
+    paddingRight: 32,
+  },
+  recentPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: RoseTheme.colors.gray50,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: RoseTheme.colors.border,
+    gap: 6,
+  },
+  recentPillIcon: {
+    fontSize: 14,
+  },
+  recentPillText: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 14,
+    color: RoseTheme.colors.text,
+  },
+  recentPillKcal: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 12,
+    color: RoseTheme.colors.textMuted,
+    marginLeft: 4,
+  },
+  favoriteRemoveButton: {
+    marginLeft: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  typeSelector: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 32,
+    marginTop: 8,
+  },
+  typeButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 24,
+    borderWidth: 2,
+    gap: 8,
+  },
+  typeButtonActive: {
+    borderColor: RoseTheme.colors.primary,
+    backgroundColor: RoseTheme.colors.soft,
+  },
+  typeButtonInactive: {
+    borderColor: RoseTheme.colors.gray50,
+    backgroundColor: 'rgba(249, 250, 251, 0.5)',
+  },
+  typeText: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  typeTextActive: {
+    color: RoseTheme.colors.primary,
+  },
+  typeTextInactive: {
+    color: '#9ca3af',
+  },
+  form: {
+    gap: 20,
+  },
+  inputGroup: {},
+  label: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 10,
+    color: RoseTheme.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  input: {
+    width: '100%',
+    backgroundColor: 'rgba(255, 241, 242, 0.5)',
+    borderWidth: 1,
+    borderColor: RoseTheme.colors.border,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 16,
+    color: RoseTheme.colors.text,
+  },
+  inputError: {
+    borderColor: '#ef4444',
+    borderWidth: 1.5,
+  },
+  fieldErrorText: {
+    marginTop: 6,
+    paddingHorizontal: 4,
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 12,
+    color: '#dc2626',
+  },
+  errorBanner: {
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 13,
+    color: '#b91c1c',
+  },
+  errorBannerClose: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  actionPillFull: {
+    flex: 1,
+    backgroundColor: RoseTheme.colors.gray50,
+    borderWidth: 1,
+    borderColor: RoseTheme.colors.border,
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderStyle: 'dashed',
+  },
+  actionPillText: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 13,
+    color: RoseTheme.colors.textMuted,
+  },
+  aiFieldHint: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: Platform.OS === 'web' ? 12 : 13,
+    color: RoseTheme.colors.text,
+    opacity: 0.72,
+    marginBottom: 10,
+    paddingHorizontal: 4,
+    lineHeight: Platform.OS === 'web' ? 17 : 19,
+  },
+  aiEstimateButton: {
+    marginTop: 12,
+    width: '100%',
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: RoseTheme.colors.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiEstimateButtonDisabled: {
+    opacity: 0.55,
+  },
+  aiEstimateButtonText: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 14,
+    color: 'white',
+  },
+  textArea: {
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  submitButton: {
+    width: '100%',
+    height: 56,
+    backgroundColor: RoseTheme.colors.primary,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    shadowColor: RoseTheme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitButtonText: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 18,
+    color: 'white',
+  },
+});
