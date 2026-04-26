@@ -89,7 +89,7 @@ export default function ProgressScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ChevronLeft color={RoseTheme.colors.text} size={28} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Your Progress ✨</Text>
+        <Text style={styles.headerTitle}>Your sparkle stats ✨</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -98,7 +98,7 @@ export default function ProgressScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.iconBoxFiery}>
-              <Flame color="#ef4444" size={24} />
+              <Flame color={RoseTheme.colors.ribbon} size={24} />
             </View>
             <View style={styles.cardHeaderText}>
               <Text style={styles.cardTitle}>Calorie Target Streak</Text>
@@ -132,8 +132,8 @@ export default function ProgressScreen() {
         {/* Hydration Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <View style={[styles.iconBoxFiery, { backgroundColor: '#e0f2fe' }]}>
-              <Droplets color="#0ea5e9" size={24} />
+            <View style={[styles.iconBoxFiery, { backgroundColor: RoseTheme.colors.accent }]}>
+              <Droplets color={RoseTheme.colors.waterFill} size={24} />
             </View>
             <View style={styles.cardHeaderText}>
               <Text style={styles.cardTitle}>Hydration Streak</Text>
@@ -142,7 +142,7 @@ export default function ProgressScreen() {
           </View>
           
           <View style={styles.streakNumberBox}>
-            <Text style={[styles.streakNumber, { color: '#0ea5e9' }]}>{waterStreak}</Text>
+            <Text style={[styles.streakNumber, { color: RoseTheme.colors.waterFill }]}>{waterStreak}</Text>
             <Text style={styles.streakLabel}>DAYS IN A ROW</Text>
           </View>
 
@@ -154,10 +154,10 @@ export default function ProgressScreen() {
               const dayName = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][new Date(date).getDay()];
               return (
                 <View key={date} style={styles.dayCol}>
-                  <View style={[styles.dayCircle, hydrated && { backgroundColor: '#0ea5e9', borderWidth: 0 }]}>
+                  <View style={[styles.dayCircle, hydrated && { backgroundColor: RoseTheme.colors.waterFill, borderWidth: 0 }]}>
                     {hydrated ? <Droplets size={14} color="white" /> : <View style={styles.dayDot} />}
                   </View>
-                  <Text style={[styles.dayText, hydrated && { color: '#0ea5e9', fontFamily: RoseTheme.fonts.bold }]}>{dayName}</Text>
+                  <Text style={[styles.dayText, hydrated && { color: RoseTheme.colors.waterFill, fontFamily: RoseTheme.fonts.bold }]}>{dayName}</Text>
                 </View>
               );
             })}
@@ -185,7 +185,7 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: RoseTheme.colors.background,
+    backgroundColor: RoseTheme.colors.soft,
   },
   header: {
     flexDirection: 'row',
@@ -193,9 +193,9 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: RoseTheme.colors.gray50,
+    backgroundColor: RoseTheme.colors.softLavender,
+    borderBottomWidth: 2,
+    borderBottomColor: RoseTheme.colors.borderLight,
   },
   backButton: {
     padding: 8,
@@ -204,24 +204,24 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontFamily: RoseTheme.fonts.bold,
-    color: RoseTheme.colors.text,
+    color: RoseTheme.colors.primaryDeep,
   },
   scrollContent: {
     padding: 24,
     paddingBottom: 60,
   },
   card: {
-    backgroundColor: 'white',
-    borderRadius: 24,
+    backgroundColor: RoseTheme.colors.cardWhite,
+    borderRadius: 28,
     padding: 24,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: RoseTheme.colors.gray50,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
+    shadowColor: RoseTheme.colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 4,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -231,10 +231,12 @@ const styles = StyleSheet.create({
   iconBoxFiery: {
     width: 48,
     height: 48,
-    borderRadius: 16,
-    backgroundColor: '#fee2e2',
+    borderRadius: 18,
+    backgroundColor: RoseTheme.colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
   },
   cardHeaderText: {
     marginLeft: 16,
@@ -261,7 +263,7 @@ const styles = StyleSheet.create({
   streakNumber: {
     fontSize: 48,
     fontFamily: RoseTheme.fonts.bold,
-    color: '#ef4444',
+    color: RoseTheme.colors.primary,
     lineHeight: 56,
   },
   streakLabel: {
@@ -294,8 +296,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dayCircleActive: {
-    backgroundColor: '#ef4444',
-    borderColor: '#ef4444',
+    backgroundColor: RoseTheme.colors.primary,
+    borderColor: RoseTheme.colors.primary,
   },
   dayDot: {
     width: 6,
@@ -309,7 +311,7 @@ const styles = StyleSheet.create({
     color: RoseTheme.colors.textMuted,
   },
   dayTextActive: {
-    color: '#ef4444',
+    color: RoseTheme.colors.primaryDeep,
     fontFamily: RoseTheme.fonts.bold,
   },
 });

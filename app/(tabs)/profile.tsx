@@ -93,8 +93,8 @@ export default function ProfileScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Your Profile</Text>
-        <Text style={styles.subtitle}>Update your stats and goals.</Text>
+        <Text style={styles.title}>Your profile 🎀</Text>
+        <Text style={styles.subtitle}>Tweak your stats & goals anytime, bestie</Text>
       </View>
 
       <View style={styles.card}>
@@ -221,7 +221,7 @@ export default function ProfileScreen() {
       </View>
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Save Changes</Text>
+        <Text style={styles.saveButtonText}>Save changes ✨</Text>
       </TouchableOpacity>
 
       {/* Projection Section */}
@@ -316,7 +316,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: RoseTheme.colors.background,
+    backgroundColor: RoseTheme.colors.soft,
     padding: 24,
     paddingTop: 60,
     paddingBottom: 40,
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: RoseTheme.fonts.bold,
     fontSize: 28,
-    color: RoseTheme.colors.text,
+    color: RoseTheme.colors.primaryDeep,
   },
   subtitle: {
     fontFamily: RoseTheme.fonts.medium,
@@ -336,16 +336,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   card: {
-    backgroundColor: 'white',
-    borderRadius: 24,
+    backgroundColor: RoseTheme.colors.cardWhite,
+    borderRadius: 28,
     padding: 24,
     shadowColor: RoseTheme.colors.primary,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: RoseTheme.colors.border,
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    elevation: 4,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
   },
   inputGroup: {
     marginBottom: 20,
@@ -432,15 +432,17 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 56,
     backgroundColor: RoseTheme.colors.primary,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 24,
-    shadowColor: RoseTheme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 3,
+    borderColor: RoseTheme.colors.cardWhite,
+    shadowColor: RoseTheme.colors.fabGlow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
   },
   saveButtonText: {
     fontFamily: RoseTheme.fonts.bold,

@@ -1,17 +1,42 @@
+/**
+ * Kawaii / Sanrio-inspired palette — soft pinks, ribbon reds, candy accents.
+ * Use these tokens in StyleSheets so the whole app stays cohesive.
+ */
 export const RoseTheme = {
   colors: {
-    primary: '#FF8FA3',
+    primary: '#FF6B9D',
+    primaryLight: '#FFB3CE',
+    primaryDeep: '#E84A7E',
     secondary: '#FF4D6D',
-    accent: '#FFD1DC',
-    soft: '#FFF1F2',
-    border: '#FEE2E2',
-    text: '#1e293b', // slate-800
-    textMuted: '#94a3b8', // slate-400
-    background: '#ffffff',
-    gray50: '#f9fafb',
-    teal400: '#2dd4bf',
-    teal500: '#14b8a6',
-    iconBackground: '#fff7ed',
+    accent: '#FFD6E8',
+    accentLavender: '#EDE9FE',
+    accentButter: '#FEF3C7',
+    accentMint: '#D1FAE5',
+    soft: '#FFF5F9',
+    softLavender: '#FDF4FF',
+    border: '#FFC2D8',
+    borderLight: '#FFE8F0',
+    text: '#6B4E5B',
+    textMuted: '#A88F9A',
+    background: '#FFFBFC',
+    cardWhite: '#FFFFFF',
+    gray50: '#FFF0F6',
+    iconBackground: '#FFE4F0',
+    ribbon: '#FF4D6D',
+    fabGlow: '#FF9EC4',
+    tabBarBg: '#FFFFFF',
+    tabBarBorder: '#FFD6E8',
+    teal400: '#7DD3C0',
+    teal500: '#5BBFAA',
+    macroProtein: '#FF6B9D',
+    macroCarbs: '#C4B5FD',
+    macroFats: '#FCD34D',
+    waterFill: '#FF8FAB',
+    waterEmpty: '#E8D4DC',
+    waterTrack: '#FFC2D8',
+    waterTrackBg: '#FFE4EC',
+    streakFire: '#FF758C',
+    kittyBow: '#FF1744',
   },
   fonts: {
     regular: 'Quicksand_400Regular',

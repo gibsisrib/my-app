@@ -59,10 +59,10 @@ export default function HomeScreen() {
   });
 
   const getEncouragingMessage = () => {
-    if (consumed === 0) return "Let's fuel up for the day! 🥐";
-    if (remaining > 500) return "You're doing great! Keep it up! 🌟";
-    if (remaining > 0) return "Almost at your goal! You got this! 💪";
-    return "Goal reached! Amazing job today! 🎉";
+    if (consumed === 0) return "Let’s fill today with yummy fuel! (๑˃ᴗ˂)ﻭ";
+    if (remaining > 500) return "So proud of you — keep going, little star! ✨";
+    if (remaining > 0) return "Almost there, sweetie! You’ve got this! 💕";
+    return "Yayyy! Goal reached — you’re shining today! 🎀";
   };
 
   const isToday = selectedDate === getTodayString();
@@ -89,17 +89,30 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greetingText}>Welcome back,</Text>
-          <Text style={styles.nameText}>Cutie ✨</Text>
+          <Text style={styles.greetingText}>Hii again,</Text>
+          <Text style={styles.nameText}>Cutie ✨ 🎀</Text>
         </View>
         <View style={styles.headerRight}>
           <View style={styles.streakBadge}>
-            <Flame size={16} color="#ef4444" />
+            <Flame size={16} color={RoseTheme.colors.streakFire} />
             <Text style={styles.streakText}>{currentStreak}</Text>
           </View>
           <TouchableOpacity 
             onPress={() => router.push('/progress')}
-            style={{ width: 48, height: 48, borderRadius: 24, overflow: 'hidden', borderWidth: 2, borderColor: 'white' }}
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 26,
+              overflow: 'hidden',
+              borderWidth: 3,
+              borderColor: RoseTheme.colors.cardWhite,
+              backgroundColor: RoseTheme.colors.accent,
+              shadowColor: RoseTheme.colors.primary,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.35,
+              shadowRadius: 6,
+              elevation: 4,
+            }}
           >
             <Image source={{ uri: dogImage }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
           </TouchableOpacity>
@@ -155,7 +168,7 @@ export default function HomeScreen() {
                 <Text style={styles.macroValue}>{consumedProtein} / {proteinGoal}g</Text>
               </View>
               <View style={styles.macroBarBg}>
-                <View style={[styles.macroBarFill, { backgroundColor: '#ef4444', width: `${pPercent}%` }]} />
+                <View style={[styles.macroBarFill, { backgroundColor: RoseTheme.colors.macroProtein, width: `${pPercent}%` }]} />
               </View>
             </View>
             <View style={styles.macroItem}>
@@ -164,7 +177,7 @@ export default function HomeScreen() {
                 <Text style={styles.macroValue}>{consumedCarbs} / {carbsGoal}g</Text>
               </View>
               <View style={styles.macroBarBg}>
-                <View style={[styles.macroBarFill, { backgroundColor: '#3b82f6', width: `${cPercent}%` }]} />
+                <View style={[styles.macroBarFill, { backgroundColor: RoseTheme.colors.macroCarbs, width: `${cPercent}%` }]} />
               </View>
             </View>
             <View style={styles.macroItem}>
@@ -173,7 +186,7 @@ export default function HomeScreen() {
                 <Text style={styles.macroValue}>{consumedFats} / {fatsGoal}g</Text>
               </View>
               <View style={styles.macroBarBg}>
-                <View style={[styles.macroBarFill, { backgroundColor: '#eab308', width: `${fPercent}%` }]} />
+                <View style={[styles.macroBarFill, { backgroundColor: RoseTheme.colors.macroFats, width: `${fPercent}%` }]} />
               </View>
             </View>
           </View>
@@ -181,7 +194,7 @@ export default function HomeScreen() {
 
         {/* Water Tracker */}
         <View style={styles.waterSection}>
-          <Text style={styles.waterTitle}>Daily Hydration 💧</Text>
+          <Text style={styles.waterTitle}>Sip-sip hydration station 💧</Text>
           <View style={styles.waterGlasses}>
             {[...Array(6)].map((_, i) => {
               const isFilled = i < (todayWater || 0);
@@ -200,8 +213,8 @@ export default function HomeScreen() {
                 >
                   <Droplet
                     size={32}
-                    color={isFilled ? '#3b82f6' : '#d1d5db'}
-                    fill={isFilled ? '#3b82f6' : 'transparent'}
+                    color={isFilled ? RoseTheme.colors.waterFill : RoseTheme.colors.waterEmpty}
+                    fill={isFilled ? RoseTheme.colors.waterFill : 'transparent'}
                   />
                 </TouchableOpacity>
               );
@@ -218,9 +231,9 @@ export default function HomeScreen() {
               Haptics.selectionAsync();
               setWater(val);
             }}
-            minimumTrackTintColor="#3b82f6"
-            maximumTrackTintColor="#e5e7eb"
-            thumbTintColor="#3b82f6"
+            minimumTrackTintColor={RoseTheme.colors.waterFill}
+            maximumTrackTintColor={RoseTheme.colors.waterTrackBg}
+            thumbTintColor={RoseTheme.colors.primary}
           />
           <Text style={styles.waterSubtext}>
             {todayWater || 0}/6 glasses ({((todayWater || 0) * 8)} oz)
@@ -235,7 +248,7 @@ export default function HomeScreen() {
                 <ChevronLeft size={20} color={RoseTheme.colors.text} />
               </TouchableOpacity>
               <Text style={styles.historyTitle}>
-                {isToday ? "Today's Fuel" : new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                {isToday ? "Today’s fuel log ✨" : new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
               </Text>
               <TouchableOpacity onPress={() => changeDate(1)} disabled={isToday} style={[styles.dateNavBtn, isToday && { opacity: 0.3 }]}>
                 <ChevronRight size={20} color={RoseTheme.colors.text} />
@@ -244,15 +257,16 @@ export default function HomeScreen() {
             {isToday && (
               <View style={styles.liveLogBadge}>
                 <View style={styles.liveLogDot} />
-                <Text style={styles.liveLogText}>LIVE LOG</Text>
+                <Text style={styles.liveLogText}>LIVE LOG 💫</Text>
               </View>
             )}
           </View>
 
           {displayMeals.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No log entries yet...</Text>
-              <Text style={styles.emptyStateSubtext}>READY FOR BREAKFAST? 🍎</Text>
+              <Text style={styles.emptyStateEmoji}>🍓</Text>
+              <Text style={styles.emptyStateText}>No bites logged yet…</Text>
+              <Text style={styles.emptyStateSubtext}>Tap below when you’re ready to nom nom! 🎀</Text>
             </View>
           ) : (
             <View style={styles.mealList}>
@@ -299,7 +313,7 @@ export default function HomeScreen() {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           router.push('/add-meal');
         }}>
-          <Text style={styles.fabText}>+ Add Fuel</Text>
+          <Text style={styles.fabText}>＋ Add fuel 💗</Text>
         </TouchableOpacity>
       </View>
 
@@ -311,6 +325,13 @@ export default function HomeScreen() {
             fallSpeed={3000}
             fadeOut={true}
             autoStart={true}
+            colors={[
+              RoseTheme.colors.primary,
+              RoseTheme.colors.primaryLight,
+              RoseTheme.colors.accentButter,
+              RoseTheme.colors.accentLavender,
+              '#ffffff',
+            ]}
           />
         </View>
       )}
@@ -324,7 +345,13 @@ export default function HomeScreen() {
             fallSpeed={2500}
             fadeOut={true}
             autoStart={true}
-            colors={['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#ffffff']}
+            colors={[
+              RoseTheme.colors.primary,
+              RoseTheme.colors.primaryLight,
+              RoseTheme.colors.accentLavender,
+              RoseTheme.colors.accentButter,
+              '#ffffff',
+            ]}
           />
         </View>
       )}
@@ -353,7 +380,7 @@ const styles = StyleSheet.create({
   nameText: {
     fontFamily: RoseTheme.fonts.bold,
     fontSize: 28,
-    color: RoseTheme.colors.text,
+    color: RoseTheme.colors.primaryDeep,
   },
   headerRight: {
     flexDirection: 'row',
@@ -363,16 +390,18 @@ const styles = StyleSheet.create({
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fee2e2', // red-100
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    backgroundColor: RoseTheme.colors.accent,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
     gap: 4,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
   },
   streakText: {
     fontFamily: RoseTheme.fonts.bold,
     fontSize: 14,
-    color: '#ef4444',
+    color: RoseTheme.colors.ribbon,
   },
   dogAvatar: {
     width: 48,
@@ -386,14 +415,16 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   gradientCard: {
-    backgroundColor: RoseTheme.colors.primary, // fallback for gradient
+    backgroundColor: RoseTheme.colors.primary,
     borderRadius: 32,
     padding: 24,
-    shadowColor: RoseTheme.colors.secondary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    borderWidth: 4,
+    borderColor: RoseTheme.colors.cardWhite,
+    shadowColor: RoseTheme.colors.primaryDeep,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 10,
     marginBottom: 32,
   },
   cardHeader: {
@@ -562,10 +593,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   liveLogDot: {
-    width: 8,
-    height: 8,
-    backgroundColor: '#4ade80', // green-400
-    borderRadius: 4,
+    width: 9,
+    height: 9,
+    backgroundColor: RoseTheme.colors.primaryLight,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.cardWhite,
   },
   liveLogText: {
     fontFamily: RoseTheme.fonts.bold,
@@ -574,13 +607,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   emptyState: {
-    backgroundColor: 'rgba(255, 241, 242, 0.5)',
-    borderWidth: 2,
+    backgroundColor: RoseTheme.colors.softLavender,
+    borderWidth: 3,
     borderColor: RoseTheme.colors.border,
     borderStyle: 'dashed',
     borderRadius: 32,
-    paddingVertical: 64,
+    paddingVertical: 56,
     alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyStateEmoji: {
+    fontSize: 40,
+    marginBottom: 12,
   },
   emptyStateText: {
     fontFamily: RoseTheme.fonts.bold,
@@ -600,10 +638,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   logItem: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: RoseTheme.colors.border,
-    borderRadius: 24,
+    backgroundColor: RoseTheme.colors.cardWhite,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
+    borderRadius: 26,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -616,11 +654,13 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 48,
     height: 48,
-    backgroundColor: '#fff7ed', // orange-50
-    borderRadius: 16,
+    backgroundColor: RoseTheme.colors.iconBackground,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
   },
   logItemContent: {
     flex: 1,
@@ -663,36 +703,39 @@ const styles = StyleSheet.create({
     right: 32,
   },
   fab: {
-    backgroundColor: RoseTheme.colors.text,
-    height: 56,
-    borderRadius: 28,
+    backgroundColor: RoseTheme.colors.primary,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    borderWidth: 3,
+    borderColor: RoseTheme.colors.cardWhite,
+    shadowColor: RoseTheme.colors.fabGlow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+    elevation: 10,
   },
   fabText: {
     fontFamily: RoseTheme.fonts.bold,
     fontSize: 16,
     color: 'white',
+    letterSpacing: 0.3,
   },
   waterSection: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 24,
-    marginHorizontal: 32,
-    marginTop: 24,
+    backgroundColor: RoseTheme.colors.cardWhite,
+    borderRadius: 28,
+    padding: 22,
+    marginHorizontal: 0,
+    marginTop: 8,
     marginBottom: 18,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.1)',
+    shadowColor: RoseTheme.colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
   },
   waterTitle: {
     fontSize: 16,

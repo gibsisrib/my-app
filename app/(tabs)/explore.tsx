@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Calendar, Edit2, Trash2 } from 'lucide-react-native';
+import { Edit2, Trash2 } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useCalories } from '../../CaloriesContext';
@@ -82,14 +82,15 @@ export default function HistoryScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>History</Text>
-        <Text style={styles.subtitle}>All your past logs</Text>
+        <Text style={styles.title}>Sweet memories 🎀</Text>
+        <Text style={styles.subtitle}>Every snack & meal you’ve logged</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         {dates.length === 0 ? (
           <View style={styles.emptyState}>
-             <Calendar size={48} color={RoseTheme.colors.gray50} />
-             <Text style={styles.emptyStateText}>No history yet.</Text>
+             <Text style={{ fontSize: 48 }}>📔</Text>
+             <Text style={styles.emptyStateText}>No diary pages yet…</Text>
+             <Text style={styles.emptyStateHint}>Your fuel story starts soon! ✨</Text>
           </View>
         ) : (
           dates.map(date => {
@@ -122,25 +123,26 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: RoseTheme.colors.background,
+    backgroundColor: RoseTheme.colors.soft,
   },
   header: {
     paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: RoseTheme.colors.gray50,
+    paddingBottom: 22,
+    backgroundColor: RoseTheme.colors.softLavender,
+    borderBottomWidth: 2,
+    borderBottomColor: RoseTheme.colors.borderLight,
   },
   title: {
     fontFamily: RoseTheme.fonts.bold,
-    fontSize: 28,
-    color: RoseTheme.colors.text,
+    fontSize: 26,
+    color: RoseTheme.colors.primaryDeep,
   },
   subtitle: {
     fontFamily: RoseTheme.fonts.medium,
-    fontSize: 16,
+    fontSize: 15,
     color: RoseTheme.colors.textMuted,
+    marginTop: 4,
   },
   content: {
     padding: 24,
@@ -149,13 +151,21 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 56,
+    paddingHorizontal: 24,
   },
   emptyStateText: {
-    marginTop: 16,
+    marginTop: 14,
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 17,
+    color: RoseTheme.colors.text,
+  },
+  emptyStateHint: {
+    marginTop: 8,
     fontFamily: RoseTheme.fonts.medium,
-    fontSize: 16,
+    fontSize: 14,
     color: RoseTheme.colors.textMuted,
+    textAlign: 'center',
   },
   dateGroup: {
     marginBottom: 32,
@@ -178,10 +188,10 @@ const styles = StyleSheet.create({
     color: RoseTheme.colors.primary,
   },
   logItem: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: RoseTheme.colors.border,
-    borderRadius: 24,
+    backgroundColor: RoseTheme.colors.cardWhite,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
+    borderRadius: 26,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -196,10 +206,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     backgroundColor: RoseTheme.colors.iconBackground,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
   },
   logItemContent: {
     flex: 1,

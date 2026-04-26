@@ -3,14 +3,39 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Beer, Utensils, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import { useCalories } from '../CaloriesContext';
 import { RoseTheme } from '../constants/RoseTheme';
 import { getApiBaseUrl } from '../utils/getApiBaseUrl';
 
+type WizardStep = 'describe' | 'photo' | 'analyzing' | 'results';
+
+const imagePickerOptions: ImagePicker.ImagePickerOptions = {
+  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  allowsEditing: true,
+  aspect: [4, 3],
+  quality: 0.5,
+  base64: true,
+};
+
 export default function AddMealScreen() {
   const { id } = useLocalSearchParams();
-  const { addEntry, updateEntry, entries, favorites, removeFavorite } = useCalories();
+  const isEdit = Boolean(id);
+  const { addEntry, updateEntry, entries } = useCalories();
+
+  const [wizardStep, setWizardStep] = useState<WizardStep>('describe');
+  const [resultsConfettiKey, setResultsConfettiKey] = useState(0);
 
   const [type, setType] = useState('meal');
   const [name, setName] = useState('');
@@ -19,7 +44,6 @@ export default function AddMealScreen() {
   const [carbs, setCarbs] = useState('');
   const [fats, setFats] = useState('');
   const [notes, setNotes] = useState('');
-  /** Last AI photo scan (base64) so text-only "Estimate" can combine with it later */
   const [lastMealPhotoBase64, setLastMealPhotoBase64] = useState<string | null>(null);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -42,21 +66,6 @@ export default function AddMealScreen() {
       }
     }
   }, [id, entries]);
-
-  const recentMeals = entries
-    ? entries
-        .slice()
-        .reverse()
-        .reduce((acc: any[], current: any) => {
-          const x = acc.find(item => item.name.toLowerCase() === current.name.toLowerCase());
-          if (!x && current.name) {
-            return acc.concat([current]);
-          } else {
-            return acc;
-          }
-        }, [])
-        .slice(0, 8)
-    : [];
 
   const handleSubmit = () => {
     const trimmedName = name.trim();
@@ -192,13 +201,7 @@ export default function AddMealScreen() {
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.5,
-      base64: true,
-    });
+    const result = await ImagePicker.launchCameraAsync(imagePickerOptions);
 
     if (!result.canceled && result.assets && result.assets[0].base64) {
       const imageBase64 = result.assets[0].base64;
@@ -229,243 +232,440 @@ export default function AddMealScreen() {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
-          <X size={24} color={RoseTheme.colors.textMuted} />
-        </TouchableOpacity>
-      </View>
+  const wizardPickFromLibrary = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      alert('We need photo library access to upload a meal picture.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync(imagePickerOptions);
+    if (!result.canceled && result.assets?.[0]?.base64) {
+      setLastMealPhotoBase64(result.assets[0].base64);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: Platform.OS === 'web' ? 60 : 140 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.title}>Scan or describe</Text>
-        {showError && !!errorMessage && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{errorMessage}</Text>
-            <TouchableOpacity onPress={() => setShowError(false)} style={styles.errorBannerClose}>
-              <X size={16} color="#dc2626" />
+  const wizardTakePhoto = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      alert('We need camera permission to take a photo of your food.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync(imagePickerOptions);
+    if (!result.canceled && result.assets?.[0]?.base64) {
+      setLastMealPhotoBase64(result.assets[0].base64);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const runWizardAnalysis = async () => {
+    const desc = notes.trim();
+    const img = lastMealPhotoBase64;
+    if (!desc && !img) {
+      setErrorMessage('Add a description on the last step, or a photo — your AI needs at least one.');
+      setShowError(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+    setShowError(false);
+    setWizardStep('analyzing');
+    setIsAnalyzing(true);
+    try {
+      const body: { imageBase64?: string; description?: string } = {};
+      if (desc) body.description = desc;
+      if (img) body.imageBase64 = img;
+      await callAnalyzeMealApi(body);
+      setResultsConfettiKey((k) => k + 1);
+      setWizardStep('results');
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      const networkish =
+        /network|failed to fetch|load failed|aborted/i.test(msg) ||
+        msg === 'Network request failed';
+      setErrorMessage(
+        networkish
+          ? "Can't reach your meal server. On your phone: use the same Wi‑Fi as your PC, run `npm run server`, allow port 8787 through Windows Firewall, and restart Expo."
+          : msg || "AI couldn't estimate this meal. Try again."
+      );
+      setShowError(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setWizardStep('photo');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const headerClose = () => router.back();
+
+  if (isEdit) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.closeButton} onPress={headerClose}>
+            <X size={24} color={RoseTheme.colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: Platform.OS === 'web' ? 60 : 140 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>Scan or describe</Text>
+          {showError && !!errorMessage && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
+              <TouchableOpacity onPress={() => setShowError(false)} style={styles.errorBannerClose}>
+                <X size={16} color="#dc2626" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>DESCRIBE YOUR MEAL</Text>
+            <Text style={styles.aiFieldHint}>
+              Write what you ate, then use Estimate — or take a photo. Notes here are also sent with AI Photo Scan for
+              extra detail (sauce, swaps, portions).
+            </Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="e.g. Chipotle chicken bowl, double rice, no sour cream…"
+              placeholderTextColor={RoseTheme.colors.textMuted}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              numberOfLines={4}
+            />
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={styles.actionPillFull}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  handleAiPhotoScan();
+                }}
+                disabled={isAnalyzing}
+              >
+                <Text style={styles.actionPillText}>{isAnalyzing ? 'Analyzing…' : 'AI photo scan'}</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={[styles.aiEstimateButton, isAnalyzing && styles.aiEstimateButtonDisabled]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                handleEstimateMealWithAi();
+              }}
+              disabled={isAnalyzing || (!notes.trim() && !lastMealPhotoBase64)}
+            >
+              <Text style={styles.aiEstimateButtonText}>
+                {isAnalyzing ? 'Estimating…' : 'Estimate with AI'}
+              </Text>
             </TouchableOpacity>
           </View>
-        )}
 
-        {favorites && favorites.length > 0 && !id && (
-          <View style={styles.recentSection}>
-            <Text style={styles.label}>FAVORITES ⭐</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentScroll}>
-              {favorites.map((meal: any, index: number) => (
-                <TouchableOpacity
-                  key={meal.id || index}
-                  style={[styles.recentPill, { borderColor: '#fcd34d', backgroundColor: '#fffbeb' }]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setName(meal.name);
-                    setCalories(meal.calories.toString());
-                    setProtein(meal.protein?.toString() || '');
-                    setCarbs(meal.carbs?.toString() || '');
-                    setFats(meal.fats?.toString() || '');
-                    setType(meal.type || 'meal');
-                  }}
-                >
-                  <Text style={styles.recentPillIcon}>{meal.type === 'drink' ? '🥤' : '🥗'}</Text>
-                  <Text style={styles.recentPillText}>{meal.name}</Text>
-                  <Text style={styles.recentPillKcal}>{meal.calories}</Text>
-                  <TouchableOpacity
-                    style={styles.favoriteRemoveButton}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      removeFavorite(meal.id);
-                    }}
-                  >
-                    <X size={12} color={RoseTheme.colors.textMuted} />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+          <View style={styles.typeSelector}>
+            <TouchableOpacity
+              style={[styles.typeButton, type === 'meal' ? styles.typeButtonActive : styles.typeButtonInactive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setType('meal');
+              }}
+            >
+              <Utensils size={32} color={type === 'meal' ? RoseTheme.colors.primary : '#d1d5db'} />
+              <Text style={[styles.typeText, type === 'meal' ? styles.typeTextActive : styles.typeTextInactive]}>MEAL</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.typeButton, type === 'drink' ? styles.typeButtonActive : styles.typeButtonInactive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setType('drink');
+              }}
+            >
+              <Beer size={32} color={type === 'drink' ? RoseTheme.colors.primary : '#d1d5db'} />
+              <Text style={[styles.typeText, type === 'drink' ? styles.typeTextActive : styles.typeTextInactive]}>DRINK</Text>
+            </TouchableOpacity>
           </View>
-        )}
 
-        {recentMeals.length > 0 && !id && (
-          <View style={styles.recentSection}>
-            <Text style={styles.label}>RECENTLY ADDED</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentScroll}>
-              {recentMeals.map((meal: any, index: number) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.recentPill}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setName(meal.name);
-                    setCalories(meal.calories.toString());
-                    setType(meal.type || 'meal');
-                  }}
-                >
-                  <Text style={styles.recentPillIcon}>{meal.type === 'drink' ? '🥤' : '🥗'}</Text>
-                  <Text style={styles.recentPillText}>{meal.name}</Text>
-                  <Text style={styles.recentPillKcal}>{meal.calories}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>MEAL TITLE</Text>
+              <TextInput
+                style={[styles.input, fieldErrors.name ? styles.inputError : null]}
+                placeholder="Filled by AI — you can edit"
+                placeholderTextColor={RoseTheme.colors.textMuted}
+                value={name}
+                onChangeText={(text) => {
+                  setName(text);
+                  if (fieldErrors.name) {
+                    setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                  }
+                }}
+              />
+              {!!fieldErrors.name && <Text style={styles.fieldErrorText}>{fieldErrors.name}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>CALORIES</Text>
+              <TextInput
+                style={[styles.input, fieldErrors.calories ? styles.inputError : null]}
+                placeholder="0"
+                placeholderTextColor={RoseTheme.colors.textMuted}
+                value={calories}
+                onChangeText={(text) => {
+                  setCalories(text);
+                  if (fieldErrors.calories) {
+                    setFieldErrors((prev) => ({ ...prev, calories: undefined }));
+                  }
+                }}
+                keyboardType="number-pad"
+              />
+              {!!fieldErrors.calories && <Text style={styles.fieldErrorText}>{fieldErrors.calories}</Text>}
+            </View>
+
+            <View style={[styles.row, { marginTop: 16 }]}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.label}>PROTEIN (g)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  placeholderTextColor={RoseTheme.colors.textMuted}
+                  value={protein}
+                  onChangeText={setProtein}
+                  keyboardType="number-pad"
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1, marginHorizontal: 4 }]}>
+                <Text style={styles.label}>CARBS (g)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  placeholderTextColor={RoseTheme.colors.textMuted}
+                  value={carbs}
+                  onChangeText={setCarbs}
+                  keyboardType="number-pad"
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+                <Text style={styles.label}>FATS (g)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  placeholderTextColor={RoseTheme.colors.textMuted}
+                  value={fats}
+                  onChangeText={setFats}
+                  keyboardType="number-pad"
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+              <Text style={styles.submitButtonText}>Add to my log</Text>
+            </TouchableOpacity>
           </View>
-        )}
+        </ScrollView>
+      </View>
+    );
+  }
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>DESCRIBE YOUR MEAL</Text>
-          <Text style={styles.aiFieldHint}>
-            Write what you ate, then use Estimate — or take a photo. Notes here are also sent with AI Photo Scan for
-            extra detail (sauce, swaps, portions).
-          </Text>
+  const wizardHeader = (
+    <View style={styles.header}>
+      <TouchableOpacity style={styles.closeButton} onPress={headerClose}>
+        <X size={24} color={RoseTheme.colors.textMuted} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  if (wizardStep === 'describe') {
+    return (
+      <View style={styles.container}>
+        {wizardHeader}
+        <View style={[styles.wizardBody, { paddingTop: 8 }]}>
+          <Text style={styles.wizardTitle}>Describe your meal</Text>
+          <Text style={styles.wizardSubtitle}>A few words help your AI guess portions and sides.</Text>
+          {showError && !!errorMessage && (
+            <View style={[styles.errorBanner, { marginBottom: 16 }]}>
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
+              <TouchableOpacity onPress={() => setShowError(false)} style={styles.errorBannerClose}>
+                <X size={16} color="#dc2626" />
+              </TouchableOpacity>
+            </View>
+          )}
           <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="e.g. Chipotle chicken bowl, double rice, no sour cream…"
+            style={[styles.input, styles.textArea, { flexGrow: 0 }]}
+            placeholder="e.g. Grilled salmon, rice, roasted veggies…"
             placeholderTextColor={RoseTheme.colors.textMuted}
             value={notes}
             onChangeText={setNotes}
             multiline
-            numberOfLines={4}
+            numberOfLines={6}
           />
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={styles.actionPillFull}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                handleAiPhotoScan();
-              }}
-              disabled={isAnalyzing}
-            >
-              <Text style={styles.actionPillText}>{isAnalyzing ? 'Analyzing…' : 'AI photo scan'}</Text>
-            </TouchableOpacity>
-          </View>
           <TouchableOpacity
-            style={[
-              styles.aiEstimateButton,
-              isAnalyzing && styles.aiEstimateButtonDisabled,
-            ]}
+            style={[styles.submitButton, { marginTop: 24 }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              handleEstimateMealWithAi();
+              setShowError(false);
+              setWizardStep('photo');
             }}
-            disabled={isAnalyzing || (!notes.trim() && !lastMealPhotoBase64)}
           >
-            <Text style={styles.aiEstimateButtonText}>
-              {isAnalyzing ? 'Estimating…' : 'Estimate with AI'}
+            <Text style={styles.submitButtonText}>Next</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (wizardStep === 'photo') {
+    const thumbUri = lastMealPhotoBase64 ? `data:image/jpeg;base64,${lastMealPhotoBase64}` : null;
+    return (
+      <View style={styles.container}>
+        {wizardHeader}
+        <View style={styles.wizardBody}>
+          <Text style={styles.wizardTitle}>Add a meal photo</Text>
+          <Text style={styles.wizardSubtitle}>
+            Snap or upload a picture — or skip if you already described everything.
+          </Text>
+          {showError && !!errorMessage && (
+            <View style={[styles.errorBanner, { marginBottom: 16 }]}>
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
+              <TouchableOpacity onPress={() => setShowError(false)} style={styles.errorBannerClose}>
+                <X size={16} color="#dc2626" />
+              </TouchableOpacity>
+            </View>
+          )}
+          {thumbUri ? (
+            <View style={styles.photoPreviewWrap}>
+              <Image source={{ uri: thumbUri }} style={styles.photoPreview} resizeMode="cover" />
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setLastMealPhotoBase64(null);
+                }}
+              >
+                <Text style={styles.secondaryButtonText}>Remove photo</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              <Text style={styles.photoPlaceholderText}>No photo yet</Text>
+            </View>
+          )}
+          <TouchableOpacity style={styles.outlineButton} onPress={() => void wizardTakePhoto()}>
+            <Text style={styles.outlineButtonText}>Take photo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.outlineButton, { marginTop: 12 }]} onPress={() => void wizardPickFromLibrary()}>
+            <Text style={styles.outlineButtonText}>Upload from gallery</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.secondaryButton, { marginTop: 16 }]}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setLastMealPhotoBase64(null);
+              setWizardStep('describe');
+            }}
+          >
+            <Text style={styles.secondaryButtonText}>Back</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.submitButton, { marginTop: 28 }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              void runWizardAnalysis();
+            }}
+            disabled={isAnalyzing}
+          >
+            <Text style={styles.submitButtonText}>Next</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (wizardStep === 'analyzing') {
+    return (
+      <View style={styles.container}>
+        {wizardHeader}
+        <View style={styles.loadingBody}>
+          <Text style={styles.loadingEmoji}>✨</Text>
+          <Text style={styles.loadingTitle}>Crunching your fuel…</Text>
+          <Text style={styles.loadingSubtitle}>Your cute little nutritionist is on it.</Text>
+          <ActivityIndicator size="large" color={RoseTheme.colors.primary} style={{ marginTop: 28 }} />
+        </View>
+      </View>
+    );
+  }
+
+  const kcalDisplay = parseInt(calories, 10);
+  const proteinDisplay = parseInt(protein, 10) || 0;
+  const carbsDisplay = parseInt(carbs, 10) || 0;
+  const fatsDisplay = parseInt(fats, 10) || 0;
+
+  if (wizardStep === 'results') {
+    return (
+      <View style={styles.container}>
+        {wizardHeader}
+        <View style={styles.wizardBody}>
+          <Text style={styles.resultsHeadline}>Yayy! Your fuel is ready!</Text>
+          <Text style={styles.resultsSub}>Here is what your AI logged for this meal.</Text>
+          <View style={styles.macroGrid}>
+            <View style={styles.macroCard}>
+              <Text style={styles.macroLabel}>Calories</Text>
+              <Text style={styles.macroValue}>{Number.isFinite(kcalDisplay) ? kcalDisplay : '—'}</Text>
+            </View>
+            <View style={styles.macroCard}>
+              <Text style={styles.macroLabel}>Protein</Text>
+              <Text style={styles.macroValue}>{proteinDisplay} g</Text>
+            </View>
+            <View style={styles.macroCard}>
+              <Text style={styles.macroLabel}>Carbs</Text>
+              <Text style={styles.macroValue}>{carbsDisplay} g</Text>
+            </View>
+            <View style={styles.macroCard}>
+              <Text style={styles.macroLabel}>Fat</Text>
+              <Text style={styles.macroValue}>{fatsDisplay} g</Text>
+            </View>
+          </View>
+          {!!name.trim() && (
+            <Text style={styles.resultsName} numberOfLines={3}>
+              {name.trim()}
             </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.typeSelector}>
-          <TouchableOpacity
-            style={[styles.typeButton, type === 'meal' ? styles.typeButtonActive : styles.typeButtonInactive]}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setType('meal');
-            }}
-          >
-            <Utensils size={32} color={type === 'meal' ? RoseTheme.colors.primary : '#d1d5db'} />
-            <Text style={[styles.typeText, type === 'meal' ? styles.typeTextActive : styles.typeTextInactive]}>MEAL</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.typeButton, type === 'drink' ? styles.typeButtonActive : styles.typeButtonInactive]}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setType('drink');
-            }}
-          >
-            <Beer size={32} color={type === 'drink' ? RoseTheme.colors.primary : '#d1d5db'} />
-            <Text style={[styles.typeText, type === 'drink' ? styles.typeTextActive : styles.typeTextInactive]}>DRINK</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>MEAL TITLE</Text>
-            <TextInput
-              style={[styles.input, fieldErrors.name ? styles.inputError : null]}
-              placeholder="Filled by AI — you can edit"
-              placeholderTextColor={RoseTheme.colors.textMuted}
-              value={name}
-              onChangeText={(text) => {
-                setName(text);
-                if (fieldErrors.name) {
-                  setFieldErrors((prev) => ({ ...prev, name: undefined }));
-                }
-              }}
-            />
-            {!!fieldErrors.name && <Text style={styles.fieldErrorText}>{fieldErrors.name}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>CALORIES</Text>
-            <TextInput
-              style={[styles.input, fieldErrors.calories ? styles.inputError : null]}
-              placeholder="0"
-              placeholderTextColor={RoseTheme.colors.textMuted}
-              value={calories}
-              onChangeText={(text) => {
-                setCalories(text);
-                if (fieldErrors.calories) {
-                  setFieldErrors((prev) => ({ ...prev, calories: undefined }));
-                }
-              }}
-              keyboardType="number-pad"
-            />
-            {!!fieldErrors.calories && <Text style={styles.fieldErrorText}>{fieldErrors.calories}</Text>}
-          </View>
-
-          <View style={[styles.row, { marginTop: 16 }]}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.label}>PROTEIN (g)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="0"
-                placeholderTextColor={RoseTheme.colors.textMuted}
-                value={protein}
-                onChangeText={setProtein}
-                keyboardType="number-pad"
-              />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1, marginHorizontal: 4 }]}>
-              <Text style={styles.label}>CARBS (g)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="0"
-                placeholderTextColor={RoseTheme.colors.textMuted}
-                value={carbs}
-                onChangeText={setCarbs}
-                keyboardType="number-pad"
-              />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.label}>FATS (g)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="0"
-                placeholderTextColor={RoseTheme.colors.textMuted}
-                value={fats}
-                onChangeText={setFats}
-                keyboardType="number-pad"
-              />
-            </View>
-          </View>
-
+          )}
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.submitButtonText}>Add to my log</Text>
+            <Text style={styles.submitButtonText}>Save to my log</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </View>
-  );
+        {resultsConfettiKey > 0 && (
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <ConfettiCannon
+              key={`fuel-confetti-${resultsConfettiKey}`}
+              count={180}
+              origin={{ x: -10, y: 0 }}
+              fallSpeed={2800}
+              fadeOut
+              autoStart
+              colors={[
+                RoseTheme.colors.primary,
+                RoseTheme.colors.secondary,
+                RoseTheme.colors.accent,
+                '#fff',
+                RoseTheme.colors.teal400,
+              ]}
+            />
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  return null;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: RoseTheme.colors.soft,
   },
   row: {
     flexDirection: 'row',
@@ -487,6 +687,156 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 32,
     flexGrow: 1,
+  },
+  wizardBody: {
+    flex: 1,
+    paddingHorizontal: 32,
+    paddingBottom: 40,
+  },
+  wizardTitle: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 26,
+    color: RoseTheme.colors.text,
+    marginBottom: 10,
+    letterSpacing: -0.4,
+  },
+  wizardSubtitle: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 15,
+    color: RoseTheme.colors.textMuted,
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  loadingBody: {
+    flex: 1,
+    paddingHorizontal: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 80,
+  },
+  loadingEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  loadingTitle: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 22,
+    color: RoseTheme.colors.text,
+    textAlign: 'center',
+  },
+  loadingSubtitle: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 15,
+    color: RoseTheme.colors.textMuted,
+    textAlign: 'center',
+    marginTop: 10,
+    maxWidth: 280,
+    lineHeight: 22,
+  },
+  resultsHeadline: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 26,
+    color: RoseTheme.colors.primary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  resultsSub: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 14,
+    color: RoseTheme.colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 28,
+  },
+  macroGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  macroCard: {
+    width: '47%',
+    backgroundColor: RoseTheme.colors.soft,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: RoseTheme.colors.border,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+  },
+  macroLabel: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 10,
+    color: RoseTheme.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 6,
+  },
+  macroValue: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 22,
+    color: RoseTheme.colors.text,
+  },
+  resultsName: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 15,
+    color: RoseTheme.colors.text,
+    textAlign: 'center',
+    marginBottom: 24,
+    opacity: 0.85,
+  },
+  photoPreviewWrap: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  photoPreview: {
+    width: '100%',
+    maxWidth: 320,
+    height: 200,
+    borderRadius: 16,
+    backgroundColor: RoseTheme.colors.gray50,
+  },
+  photoPlaceholder: {
+    width: '100%',
+    maxWidth: 320,
+    alignSelf: 'center',
+    height: 160,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: RoseTheme.colors.border,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    backgroundColor: 'rgba(255, 241, 242, 0.35)',
+  },
+  photoPlaceholderText: {
+    fontFamily: RoseTheme.fonts.medium,
+    color: RoseTheme.colors.textMuted,
+    fontSize: 14,
+  },
+  outlineButton: {
+    width: '100%',
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.border,
+    backgroundColor: RoseTheme.colors.gray50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  outlineButtonText: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 15,
+    color: RoseTheme.colors.text,
+  },
+  secondaryButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  secondaryButtonText: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 15,
+    color: RoseTheme.colors.textMuted,
   },
   title: {
     fontFamily: RoseTheme.fonts.bold,
@@ -608,7 +958,6 @@ const styles = StyleSheet.create({
     color: '#dc2626',
   },
   errorBanner: {
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#fecaca',
     backgroundColor: '#fef2f2',

@@ -90,8 +90,8 @@ export default function ProfileOnboarding() {
             style={{ width: 120, height: 120, borderRadius: 24, resizeMode: 'cover' }}
           />
         </View>
-        <Text style={styles.title}>Baby Girl&apos;s Calorie Tracker</Text>
-        <Text style={styles.subtitle}>Let&apos;s set up your personal goal ✨</Text>
+        <Text style={styles.title}>Baby Girl’s tracker 💖</Text>
+        <Text style={styles.subtitle}>Let’s make your goals super cute & clear ✨</Text>
       </Animated.View>
 
       <View style={styles.formContainer}>
@@ -272,7 +272,7 @@ export default function ProfileOnboarding() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: RoseTheme.colors.background,
+    backgroundColor: RoseTheme.colors.soft,
     padding: 32,
     alignItems: 'center',
     justifyContent: 'center',
@@ -283,25 +283,25 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   iconContainer: {
-    width: 124,
-    height: 124,
-    backgroundColor: RoseTheme.colors.accent,
-    borderRadius: 20,
+    width: 128,
+    height: 128,
+    backgroundColor: RoseTheme.colors.softLavender,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
-    borderWidth: 2,
-    borderColor: 'white',
+    borderWidth: 4,
+    borderColor: RoseTheme.colors.cardWhite,
     shadowColor: RoseTheme.colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
   },
   title: {
     fontFamily: RoseTheme.fonts.bold,
     fontSize: 28,
-    color: RoseTheme.colors.text,
+    color: RoseTheme.colors.primaryDeep,
     letterSpacing: -0.5,
     textAlign: 'center',
     paddingHorizontal: 16,
@@ -467,17 +467,19 @@ const styles = StyleSheet.create({
   finishButton: {
     flex: 1,
     height: 56,
-    backgroundColor: RoseTheme.colors.teal400,
-    borderRadius: 16,
+    backgroundColor: RoseTheme.colors.primary,
+    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
-    shadowColor: RoseTheme.colors.teal400,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 3,
+    borderColor: RoseTheme.colors.cardWhite,
+    shadowColor: RoseTheme.colors.primaryDeep,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
   },
   finishButtonText: {
     fontFamily: RoseTheme.fonts.bold,
