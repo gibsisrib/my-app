@@ -157,6 +157,11 @@ export default function AddMealScreen() {
           'Server returned 404 for /analyze-meal. Set EXPO_PUBLIC_API_BASE_URL to your meal API origin only (e.g. https://YOUR-SERVICE.up.railway.app) — no trailing slash, no /analyze-meal on the end, and not your Expo URL (not :8081).'
         );
       }
+      if (response.status >= 502 && response.status <= 504) {
+        throw new Error(
+          `Meal server returned HTTP ${response.status} (gateway timeout / not responding). On Railway set the deploy Start Command to: node server/index.js (this repo includes nixpacks.toml — redeploy after push). Do not use "npm start" for the API service.`
+        );
+      }
       const serverMsg =
         typeof data.error === 'string'
           ? data.error
@@ -192,7 +197,7 @@ export default function AddMealScreen() {
         msg === 'Network request failed';
       setErrorMessage(
         networkish
-          ? "Can't reach the meal API. Check EXPO_PUBLIC_API_BASE_URL, that the server is running, and your network (same Wi‑Fi as your PC if using localhost on a phone)."
+          ? `Can't reach the meal API.${msg ? ` (${msg})` : ''} Check EXPO_PUBLIC_API_BASE_URL, that the server is running, and your network (same Wi‑Fi as your PC if using localhost on a phone).`
           : msg || "AI couldn't estimate this meal. Try again."
       );
       setShowError(true);
@@ -229,7 +234,7 @@ export default function AddMealScreen() {
           msg === 'Network request failed';
         setErrorMessage(
           networkish
-            ? "Can't reach the meal API. Check EXPO_PUBLIC_API_BASE_URL and that the server is reachable from this device."
+            ? `Can't reach the meal API.${msg ? ` (${msg})` : ''} Check EXPO_PUBLIC_API_BASE_URL and that the server is reachable from this device.`
             : msg || "Oops! AI couldn't analyze the photo."
         );
         setShowError(true);
@@ -293,7 +298,7 @@ export default function AddMealScreen() {
         msg === 'Network request failed';
       setErrorMessage(
         networkish
-          ? "Can't reach the meal API. Check EXPO_PUBLIC_API_BASE_URL and that the server is running."
+          ? `Can't reach the meal API.${msg ? ` (${msg})` : ''} Check EXPO_PUBLIC_API_BASE_URL and that the server is running.`
           : msg || "AI couldn't estimate this meal. Try again."
       );
       setShowError(true);

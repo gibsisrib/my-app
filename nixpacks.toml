@@ -1,0 +1,3 @@
+# Railway uses Nixpacks. This repo's default `npm start` runs Expo — the meal API is `server/index.js`.
+[start]
+cmd = "node server/index.js"

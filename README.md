@@ -16,6 +16,10 @@ Copy `.env.example` to `.env`. Set **`EXPO_PUBLIC_API_BASE_URL`** to your API (`
 
 From the repo root, `npm run server` loads **`dotenv` from the project root**. Put **`OPENAI_API_KEY`** (and optionally **`GEMINI_API_KEY`**) in that root `.env` for local meal AI, or set them on **Railway** only in production. See `server/.env.example`.
 
+### Railway (meal API)
+
+Railway’s default **`npm start`** runs **Expo**, not your HTTP API, which produces **502 / “Application failed to respond”** on `/health`. This repo includes **`nixpacks.toml`** so the service starts with **`node server/index.js`**. After you push, trigger a **Redeploy** (or let Railway auto-deploy). In the service **Variables**, set **`OPENAI_API_KEY`** (and **`PORT`** is provided by Railway automatically). Confirm **`GET https://YOUR-SERVICE.up.railway.app/health`** returns `{"ok":true}` in a browser before testing the app.
+
 ## Commands
 
 ```bash
