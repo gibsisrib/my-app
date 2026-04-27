@@ -20,6 +20,10 @@ From the repo root, `npm run server` loads **`dotenv` from the project root**. P
 
 Railway runs **`npm start`** for Node services. This repo’s **`npm start`** is **`node server/index.js`** (the meal API), not Expo — so **`/health`** works. **`railway.toml`** and **`nixpacks.toml`** also set the same start command as a backup. If you still see **502**, open **Deploy Logs** in Railway (crash on boot, wrong root directory, or missing `OPENAI_API_KEY` only affects `/analyze-meal`, not `/health`). Use the **exact** HTTPS hostname from the Railway service tab in **`EXPO_PUBLIC_API_BASE_URL`** (your URL may look like `…55d1…` or `…56d1…` — they must match). Redeploy after pulling latest `main`.
 
+**502 but the process “starts” in logs:** On the service **Settings → Networking**, the public domain’s **target port** must match the port in the boot log (e.g. `[boot] … binding 8080`). If Railway shows **Port 8081** but the log says **8080**, edit the domain and change **8081 → 8080** (8081 is usually Metro/Expo, not this API). Mismatched ports produce 502 and **no `[http] …` lines** in logs because traffic never reaches Express.
+
+**Two different hostnames (`…55d1…` vs `…56d1…`):** Only one is your current service — copy the **HTTPS** URL from the **same** service’s **Settings → Networking** into `EXPO_PUBLIC_API_BASE_URL`.
+
 ## Commands
 
 ```bash

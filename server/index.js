@@ -9,6 +9,12 @@ const PORT = process.env.PORT || 8787;
 app.use(cors());
 app.use(express.json({ limit: '8mb' }));
 
+/** So Railway / browser hits show up in deploy logs (Express does not log by default). */
+app.use((req, _res, next) => {
+  console.log(`[http] ${req.method} ${req.url}`);
+  next();
+});
+
 const {
   parseJsonFromAiContent,
   normalizeAiPayload,
@@ -217,6 +223,10 @@ async function runAnalyzeMeal({ imageBase64, description }) {
   return applyAtwaterReconciliation(raw);
 }
 
+app.get('/', (_req, res) => {
+  res.json({ ok: true });
+});
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
@@ -243,13 +253,7 @@ app.post('/analyze-meal', rateLimit, async (req, res) => {
     });
   }
 });
-app.get("/", (req, res) => {
-  res.send("Server is alive");
-});
 
-app.get("/health", (req, res) => {
-  res.json({ ok: true });
-});
 app.post('/analyze-food-photo', rateLimit, async (req, res) => {
   try {
     const imageBase64 = sanitizeBase64(req.body?.imageBase64);
@@ -271,6 +275,10 @@ app.post('/analyze-food-photo', rateLimit, async (req, res) => {
   }
 });
 
-app.listen(Number(PORT) || 8787, '0.0.0.0', () => {
-  console.log(`Server listening on http://0.0.0.0:${PORT} (health + meal AI)`);
+const listenPort = Number(PORT) || 8787;
+console.log(`[boot] process.env.PORT=${JSON.stringify(process.env.PORT)} binding ${listenPort}`);
+app.listen(listenPort, '0.0.0.0', () => {
+  console.log(
+    `Server listening on http://0.0.0.0:${listenPort} (health + meal AI). On Railway: set Public Networking → port to ${listenPort} (must match this number).`
+  );
 });
