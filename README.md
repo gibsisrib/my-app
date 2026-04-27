@@ -10,7 +10,18 @@ Expo (React Native) calorie and hydration tracker with a small Node server (`/he
 
 ### App (Expo)
 
-Copy `.env.example` to `.env`. Set **`EXPO_PUBLIC_API_BASE_URL`** to your API (`http://localhost:8787` locally, or your Railway HTTPS URL in production builds via **EAS Secrets**). See `utils/getApiBaseUrl.ts` for how `localhost` is rewritten on a physical device in development.
+Copy `.env.example` to `.env`. Set **`EXPO_PUBLIC_API_BASE_URL`** to your API (`http://localhost:8787` locally). **TestFlight / App Store builds** pick up the same variable from **`eas.json`** (`production` and `preview` profiles) so the installed app talks to Railway without relying on your PC. If your Railway hostname ever changes, update **`eas.json`** to match. See `utils/getApiBaseUrl.ts` for localhost → dev machine on a physical phone.
+
+### EAS (Expo Application Services) and TestFlight
+
+**EAS** is Expo’s cloud service: it runs **`eas build`** to produce an **.ipa** (iOS) from this repo, and **`eas submit`** can upload it to **App Store Connect** for **TestFlight**.
+
+1. Install CLI: `npm i -g eas-cli` (or use `npx eas-cli`).
+2. Log in: `eas login` (Expo account linked to project id in `app.json`).
+3. Build for testers: `eas build --platform ios --profile production` (or `--profile preview` for internal-style builds).
+4. After the build finishes: `eas submit --platform ios --profile production` (first time: follow prompts for App Store Connect API key or Apple ID).
+
+Apple still reviews **external** TestFlight the first time; internal testers can be added earlier in App Store Connect.
 
 ### Server (`server/index.js`)
 

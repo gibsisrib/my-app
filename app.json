@@ -47,6 +47,13 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow access to your photo library to attach meal photos for logging.",
+          "cameraPermission": "Allow the camera to take meal photos for AI calorie estimates."
+        }
       ]
     ],
     "experiments": {
