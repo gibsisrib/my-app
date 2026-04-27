@@ -3,7 +3,8 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
+    "start": "node server/index.js",
+    "start:expo": "expo start",
     "start:tunnel": "expo start --tunnel --port 8082",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",

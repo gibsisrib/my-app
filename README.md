@@ -18,7 +18,7 @@ From the repo root, `npm run server` loads **`dotenv` from the project root**. P
 
 ### Railway (meal API)
 
-Railway’s default **`npm start`** runs **Expo**, not your HTTP API, which produces **502 / “Application failed to respond”** on `/health`. This repo includes **`nixpacks.toml`** so the service starts with **`node server/index.js`**. After you push, trigger a **Redeploy** (or let Railway auto-deploy). In the service **Variables**, set **`OPENAI_API_KEY`** (and **`PORT`** is provided by Railway automatically). Confirm **`GET https://YOUR-SERVICE.up.railway.app/health`** returns `{"ok":true}` in a browser before testing the app.
+Railway runs **`npm start`** for Node services. This repo’s **`npm start`** is **`node server/index.js`** (the meal API), not Expo — so **`/health`** works. **`railway.toml`** and **`nixpacks.toml`** also set the same start command as a backup. If you still see **502**, open **Deploy Logs** in Railway (crash on boot, wrong root directory, or missing `OPENAI_API_KEY` only affects `/analyze-meal`, not `/health`). Use the **exact** HTTPS hostname from the Railway service tab in **`EXPO_PUBLIC_API_BASE_URL`** (your URL may look like `…55d1…` or `…56d1…` — they must match). Redeploy after pulling latest `main`.
 
 ## Commands
 
@@ -26,8 +26,8 @@ Railway’s default **`npm start`** runs **Expo**, not your HTTP API, which prod
 npm install
 # If npm reports a peer dependency conflict (svg-charts vs svg), use:
 # npm install --legacy-peer-deps
-npm run server    # API on PORT (default 8787)
-npx expo start    # app
+npm run server    # API (default 8787); same entry as `npm start` (what Railway runs)
+npm run start:expo   # Expo dev server — use this for the mobile app locally
 npm test          # unit tests (day totals / diary aggregation)
 npm run test:server  # server/lib unit tests (normalization helpers, label energy parsing)
 npm run test:all     # both test suites
