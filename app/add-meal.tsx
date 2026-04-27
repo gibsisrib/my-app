@@ -135,7 +135,7 @@ export default function AddMealScreen() {
   const callAnalyzeMealApi = async (body: { imageBase64?: string; description?: string }) => {
     const apiBaseUrl = getApiBaseUrl();
     if (!apiBaseUrl) {
-      setErrorMessage('Missing API URL. Set EXPO_PUBLIC_API_BASE_URL for your backend.');
+      setErrorMessage('Missing API URL. Set EXPO_PUBLIC_API_BASE_URL (e.g. http://localhost:8787 or your Railway HTTPS URL).');
       setShowError(true);
       throw new Error('Missing API base URL');
     }
@@ -192,7 +192,7 @@ export default function AddMealScreen() {
         msg === 'Network request failed';
       setErrorMessage(
         networkish
-          ? "Can't reach your meal server. On your phone: use the same Wi‑Fi as your PC, run `npm run server`, allow port 8787 through Windows Firewall, and restart Expo."
+          ? "Can't reach the meal API. Check EXPO_PUBLIC_API_BASE_URL, that the server is running, and your network (same Wi‑Fi as your PC if using localhost on a phone)."
           : msg || "AI couldn't estimate this meal. Try again."
       );
       setShowError(true);
@@ -229,7 +229,7 @@ export default function AddMealScreen() {
           msg === 'Network request failed';
         setErrorMessage(
           networkish
-            ? "Can't reach your meal server. Same Wi‑Fi as PC, `npm run server` running, firewall allows 8787, then reload Expo."
+            ? "Can't reach the meal API. Check EXPO_PUBLIC_API_BASE_URL and that the server is reachable from this device."
             : msg || "Oops! AI couldn't analyze the photo."
         );
         setShowError(true);
@@ -293,7 +293,7 @@ export default function AddMealScreen() {
         msg === 'Network request failed';
       setErrorMessage(
         networkish
-          ? "Can't reach your meal server. On your phone: use the same Wi‑Fi as your PC, run `npm run server`, allow port 8787 through Windows Firewall, and restart Expo."
+          ? "Can't reach the meal API. Check EXPO_PUBLIC_API_BASE_URL and that the server is running."
           : msg || "AI couldn't estimate this meal. Try again."
       );
       setShowError(true);
@@ -369,7 +369,7 @@ export default function AddMealScreen() {
               style={[styles.aiEstimateButton, isAnalyzing && styles.aiEstimateButtonDisabled]}
               onPress={() => {
                 safeImpact(Haptics.ImpactFeedbackStyle.Medium);
-                handleEstimateMealWithAi();
+                void handleEstimateMealWithAi();
               }}
               disabled={isAnalyzing || (!notes.trim() && !lastMealPhotoBase64)}
             >

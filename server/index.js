@@ -4,7 +4,7 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 8787;
 
 app.use(cors());
 app.use(express.json({ limit: '8mb' }));
@@ -271,6 +271,6 @@ app.post('/analyze-food-photo', rateLimit, async (req, res) => {
   }
 });
 
-app.listen(PORT || 3000, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(Number(PORT) || 8787, '0.0.0.0', () => {
+  console.log(`Server listening on http://0.0.0.0:${PORT} (health + meal AI)`);
 });
