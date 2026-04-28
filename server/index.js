@@ -137,7 +137,7 @@ ${MEAL_ANALYSIS_JSON_INSTRUCTION}`;
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gpt-4.1',
       response_format: { type: 'json_object' },
       messages: [{ role: 'user', content: userContent }],
     }),
