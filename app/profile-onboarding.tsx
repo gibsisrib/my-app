@@ -1,14 +1,64 @@
 import { router } from 'expo-router';
-import { Sparkles } from 'lucide-react-native';
+import { Sparkles, Target } from 'lucide-react-native';
 import { useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeIn, FadeInUp, SlideInRight } from 'react-native-reanimated';
 import { useCalories } from '../CaloriesContext';
 import { RoseTheme } from '../constants/RoseTheme';
+
+type OnboardingProfile = {
+  profileCompleted: boolean;
+  age: number;
+  sex: string;
+  heightCm: number;
+  currentWeight: number;
+  baseWeight: number;
+  goalWeight: number;
+  activityLevel: string;
+  goalType: string;
+};
+
+type CalculatedGoals = {
+  tdee: number;
+  targetCalories: number;
+  proteinGoal: number;
+  carbsGoal: number;
+  fatsGoal: number;
+};
+
+function calculateGoals(profile: OnboardingProfile): CalculatedGoals {
+  const weightKg = profile.currentWeight * 0.453592;
+  const bmr = profile.sex === 'male'
+    ? 10 * weightKg + 6.25 * profile.heightCm - 5 * profile.age + 5
+    : 10 * weightKg + 6.25 * profile.heightCm - 5 * profile.age - 161;
+  const activityMultipliers: Record<string, number> = {
+    sedentary: 1.2,
+    lightly_active: 1.375,
+    moderately_active: 1.55,
+    very_active: 1.725,
+  };
+  const tdee = Math.round(bmr * (activityMultipliers[profile.activityLevel] || 1.2));
+  const targetCalories = profile.goalType === 'lose'
+    ? tdee - 500
+    : profile.goalType === 'gain'
+      ? tdee + 250
+      : tdee;
+
+  return {
+    tdee,
+    targetCalories,
+    proteinGoal: Math.round((targetCalories * 0.3) / 4),
+    carbsGoal: Math.round((targetCalories * 0.4) / 4),
+    fatsGoal: Math.round((targetCalories * 0.3) / 9),
+  };
+}
 
 export default function ProfileOnboarding() {
   const { updateUserData, userData, dogImage, clearAppHistory } = useCalories();
   const [step, setStep] = useState(1);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [calculatedGoals, setCalculatedGoals] = useState<CalculatedGoals | null>(null);
+  const [pendingProfile, setPendingProfile] = useState<OnboardingProfile | null>(null);
 
   const [age, setAge] = useState('');
   const [sex, setSex] = useState('female');
@@ -24,8 +74,8 @@ export default function ProfileOnboarding() {
 
   const handleSubmit = () => {
     clearAppHistory();
-    updateUserData({
-      profileCompleted: true,
+    const profile = {
+      profileCompleted: false,
       age: parseInt(age) || 25,
       sex,
       heightCm: (((parseInt(heightFt) || 5) * 12) + (parseInt(heightIn) || 4)) * 2.54,
@@ -34,6 +84,23 @@ export default function ProfileOnboarding() {
       goalWeight: parseInt(goalWeight) || 130,
       activityLevel,
       goalType
+    };
+    const goals = calculateGoals(profile);
+
+    setPendingProfile(profile);
+    setIsCalculating(true);
+    updateUserData(profile);
+
+    setTimeout(() => {
+      setCalculatedGoals(goals);
+      setIsCalculating(false);
+    }, 1400);
+  };
+
+  const handleStartTracking = () => {
+    updateUserData({
+      ...(pendingProfile || {}),
+      profileCompleted: true,
     });
     router.replace('/(tabs)');
   };
@@ -56,6 +123,61 @@ export default function ProfileOnboarding() {
   };
 
   const hasExistingProfile = userData && Object.keys(userData).length > 0;
+
+  if (isCalculating) {
+    return (
+      <View style={[styles.container, styles.centeredContainer]}>
+        <Animated.View entering={FadeIn} style={styles.calculatingCard}>
+          <ActivityIndicator size="large" color={RoseTheme.colors.primary} />
+          <Text style={styles.calculatingTitle}>Calculating...</Text>
+          <Text style={styles.calculatingSubtitle}>
+            Crunching your stats into a calorie goal that fits you.
+          </Text>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  if (calculatedGoals) {
+    return (
+      <ScrollView contentContainerStyle={[styles.container, styles.centeredContainer]}>
+        <Animated.View entering={FadeInUp} style={styles.resultsCard}>
+          <View style={styles.resultsIcon}>
+            <Target size={36} color={RoseTheme.colors.primary} />
+          </View>
+          <Text style={styles.resultsTitle}>Boom! Here are your goals</Text>
+          <Text style={styles.resultsSubtitle}>You can adjust these anytime from your profile.</Text>
+
+          <View style={styles.goalSummaryCard}>
+            <Text style={styles.goalSummaryLabel}>Daily calorie goal</Text>
+            <Text style={styles.goalSummaryValue}>{calculatedGoals.targetCalories.toLocaleString()}</Text>
+            <Text style={styles.goalSummaryHint}>
+              Maintenance: {calculatedGoals.tdee.toLocaleString()} kcal
+            </Text>
+          </View>
+
+          <View style={styles.macroSummaryRow}>
+            <View style={styles.macroSummaryCard}>
+              <Text style={styles.macroSummaryLabel}>Protein</Text>
+              <Text style={styles.macroSummaryValue}>{calculatedGoals.proteinGoal}g</Text>
+            </View>
+            <View style={styles.macroSummaryCard}>
+              <Text style={styles.macroSummaryLabel}>Carbs</Text>
+              <Text style={styles.macroSummaryValue}>{calculatedGoals.carbsGoal}g</Text>
+            </View>
+            <View style={styles.macroSummaryCard}>
+              <Text style={styles.macroSummaryLabel}>Fat</Text>
+              <Text style={styles.macroSummaryValue}>{calculatedGoals.fatsGoal}g</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.primaryButton} onPress={handleStartTracking}>
+            <Text style={styles.primaryButtonText}>Start tracking</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -86,7 +208,7 @@ export default function ProfileOnboarding() {
       <Animated.View entering={FadeIn} style={styles.header}>
         <View style={styles.iconContainer}>
           <Image
-            source={require('../assets/images/cute_scene.png')}
+            source={require('../assets/images/cute_scene.jpg')}
             style={{ width: 120, height: 120, borderRadius: 24, resizeMode: 'cover' }}
           />
         </View>
@@ -276,6 +398,129 @@ const styles = StyleSheet.create({
     padding: 32,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  centeredContainer: {
+    minHeight: '100%',
+  },
+  calculatingCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: RoseTheme.colors.cardWhite,
+    borderRadius: 28,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
+    shadowColor: RoseTheme.colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  calculatingTitle: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 28,
+    color: RoseTheme.colors.primaryDeep,
+    marginTop: 20,
+  },
+  calculatingSubtitle: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 15,
+    color: RoseTheme.colors.textMuted,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 22,
+  },
+  resultsCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: RoseTheme.colors.cardWhite,
+    borderRadius: 32,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
+    shadowColor: RoseTheme.colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  resultsIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: RoseTheme.colors.gray50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  resultsTitle: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 26,
+    color: RoseTheme.colors.primaryDeep,
+    textAlign: 'center',
+  },
+  resultsSubtitle: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 14,
+    color: RoseTheme.colors.textMuted,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  goalSummaryCard: {
+    width: '100%',
+    backgroundColor: RoseTheme.colors.soft,
+    borderRadius: 24,
+    padding: 22,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: RoseTheme.colors.border,
+  },
+  goalSummaryLabel: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 11,
+    color: RoseTheme.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  goalSummaryValue: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 46,
+    color: RoseTheme.colors.primaryDeep,
+    marginTop: 4,
+  },
+  goalSummaryHint: {
+    fontFamily: RoseTheme.fonts.semiBold,
+    fontSize: 13,
+    color: RoseTheme.colors.textMuted,
+  },
+  macroSummaryRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    width: '100%',
+  },
+  macroSummaryCard: {
+    flex: 1,
+    backgroundColor: RoseTheme.colors.gray50,
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  macroSummaryLabel: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 10,
+    color: RoseTheme.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  macroSummaryValue: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 18,
+    color: RoseTheme.colors.text,
+    marginTop: 4,
   },
   header: {
     alignItems: 'center',

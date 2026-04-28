@@ -28,7 +28,7 @@ export const RoseTheme = {
     tabBarBorder: '#FFD6E8',
     teal400: '#7DD3C0',
     teal500: '#5BBFAA',
-    macroProtein: '#FF6B9D',
+    macroProtein: '#B8326A',
     macroCarbs: '#C4B5FD',
     macroFats: '#FCD34D',
     waterFill: '#FF8FAB',

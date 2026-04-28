@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Redirect, Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
@@ -18,10 +18,15 @@ import { useEffect } from 'react';
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutContent() {
-  const { isLoaded } = useCalories();
+  const { isLoaded, userData } = useCalories();
   const colorScheme = useColorScheme();
+  const segments = useSegments();
 
   if (!isLoaded) return null;
+
+  if (!userData?.profileCompleted && segments[0] !== 'profile-onboarding') {
+    return <Redirect href="/profile-onboarding" />;
+  }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
