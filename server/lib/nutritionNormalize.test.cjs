@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const {
   normalizeAiPayload,
   applyAtwaterReconciliation,
+  applyFoodBallparkSanity,
   clampInt,
   parseJsonFromAiContent,
 } = require('./nutritionNormalize');
@@ -67,5 +68,47 @@ describe('applyAtwaterReconciliation', () => {
     const r = applyAtwaterReconciliation(bad);
     assert.equal(r.calories, macroCal);
     assert.equal(r.protein, 40);
+  });
+});
+
+describe('applyFoodBallparkSanity', () => {
+  it('replaces internally consistent but impossible grilled cheese estimates', () => {
+    const impossible = {
+      name: 'Grilled cheese sandwich',
+      calories: 117,
+      protein: 25,
+      carbs: 2,
+      fats: 1,
+      type: 'meal',
+    };
+    const fixed = applyFoodBallparkSanity(impossible);
+    assert.equal(fixed.calories, 430);
+    assert.equal(fixed.protein, 16);
+    assert.equal(fixed.carbs, 36);
+    assert.equal(fixed.fats, 25);
+  });
+
+  it('does not overwrite plausible grilled cheese estimates', () => {
+    const plausible = {
+      name: 'Grilled cheese sandwich',
+      calories: 480,
+      protein: 18,
+      carbs: 32,
+      fats: 31,
+      type: 'meal',
+    };
+    assert.deepEqual(applyFoodBallparkSanity(plausible), plausible);
+  });
+
+  it('does not apply plain sandwich guardrails to meals with clear sides', () => {
+    const combo = {
+      name: 'Grilled Cheese Sandwich with Chips',
+      calories: 750,
+      protein: 18,
+      carbs: 80,
+      fats: 42,
+      type: 'meal',
+    };
+    assert.deepEqual(applyFoodBallparkSanity(combo), combo);
   });
 });

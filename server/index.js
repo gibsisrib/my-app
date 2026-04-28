@@ -19,6 +19,7 @@ const {
   parseJsonFromAiContent,
   normalizeAiPayload,
   applyAtwaterReconciliation,
+  applyFoodBallparkSanity,
 } = require('./lib/nutritionNormalize');
 
 const WINDOW_MS = 60_000;
@@ -83,6 +84,8 @@ Rules for "items":
 
 Macro sanity (avoid impossible numbers):
 - Cooked lean chicken or turkey is roughly ~25–35 g protein per 100 g of meat. One typical single boneless breast is often ~35–50 g protein from the meat alone; two medium breasts together are often roughly ~70–95 g protein total (depends on size — not ~120 g unless they are clearly very large portions).
+- A typical plain grilled cheese sandwich is usually roughly 300–650 kcal, 10–25 g protein, 25–60 g carbs, and 15–45 g fat depending on bread, cheese, and butter. Do not return tiny values like 25 kcal or 25 g total food weight for a whole sandwich. The protein/carbs/fats fields are grams of nutrients, not the total weight of the food.
+- Do not invent sides from a photo unless they are clearly visible. If a side is uncertain, leave it out or include a conservative clearly named item.
 - Totals across the plate should match the visible volume; when unsure, prefer slightly conservative estimates.
 
 Atwater consistency (critical for logging accuracy):
@@ -220,7 +223,8 @@ async function runAnalyzeMeal({ imageBase64, description }) {
     ? await analyzeMealOpenAI({ imageBase64, description }, openaiKey)
     : await analyzeMealGemini({ imageBase64, description }, geminiKey);
 
-  return applyAtwaterReconciliation(raw);
+  const reconciled = applyAtwaterReconciliation(raw);
+  return applyFoodBallparkSanity(reconciled, { description });
 }
 
 app.get('/', (_req, res) => {
