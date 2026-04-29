@@ -120,6 +120,11 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity style={styles.disclaimerCard} onPress={() => router.push('/health-disclaimer')}>
+          <Text style={styles.disclaimerTitle}>Health Disclaimer & Sources</Text>
+          <Text style={styles.disclaimerText}>How goals and food estimates are calculated</Text>
+        </TouchableOpacity>
+
         {/* Calorie Goal Card */}
         <View style={styles.gradientCard}>
           <View style={styles.cardHeader}>
@@ -413,6 +418,31 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 32,
     paddingBottom: 120,
+  },
+  disclaimerCard: {
+    backgroundColor: RoseTheme.colors.cardWhite,
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.borderLight,
+    shadowColor: RoseTheme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  disclaimerTitle: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 14,
+    color: RoseTheme.colors.primaryDeep,
+  },
+  disclaimerText: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 12,
+    color: RoseTheme.colors.textMuted,
+    marginTop: 2,
   },
   gradientCard: {
     backgroundColor: RoseTheme.colors.primary,
