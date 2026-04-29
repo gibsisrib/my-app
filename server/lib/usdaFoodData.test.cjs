@@ -19,6 +19,12 @@ const grilledChickenFood = {
   ],
 };
 
+const roastedChickenFood = {
+  fdcId: 124,
+  description: 'Chicken breast, roasted, cooked',
+  foodNutrients: grilledChickenFood.foodNutrients,
+};
+
 const hashBrownFood = {
   fdcId: 456,
   description: 'Potatoes, hash brown, refrigerated, prepared, pan-fried in canola oil',
@@ -85,6 +91,36 @@ describe('USDA FoodData helpers', () => {
     assert.equal(enriched.items[0].calories, 330);
     assert.equal(enriched.items[0].protein, 62);
     assert.equal(enriched.items[0].fdcId, 123);
+  });
+
+  it('ignores count words for matching but scales nutrition by total portion grams', async () => {
+    const payload = {
+      type: 'meal',
+      items: [
+        {
+          food: 'Two roasted chicken breasts',
+          portion: '2 roasted chicken breasts, ~300g total cooked weight',
+          portionGrams: 300,
+          calories: 999,
+          protein: 1,
+          carbs: 1,
+          fats: 1,
+        },
+      ],
+    };
+
+    const enriched = await applyUsdaNutrition(payload, {
+      apiKey: 'test-key',
+      fetchImpl: async () => ({
+        ok: true,
+        json: async () => ({ foods: [roastedChickenFood] }),
+      }),
+    });
+
+    assert.equal(enriched.items[0].source, 'usda_fooddata_central');
+    assert.equal(enriched.items[0].calories, 495);
+    assert.equal(enriched.items[0].protein, 93);
+    assert.equal(enriched.items[0].sourceFood, 'Chicken breast, roasted, cooked');
   });
 
   it('falls back to AI estimates when no USDA API key is configured', async () => {

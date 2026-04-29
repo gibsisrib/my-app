@@ -24,6 +24,16 @@ const STOP_WORDS = new Set([
   'piece',
   'pieces',
   'serving',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
 ]);
 
 const OIL_TERMS = new Set(['oil', 'butter', 'fat', 'grease']);
@@ -41,16 +51,25 @@ function round(value) {
 
 function cleanSearchTerm(food) {
   return String(food || '')
+    .replace(/\b\d+\b/g, ' ')
     .replace(/[^\w\s-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 80);
 }
 
+function normalizeToken(token) {
+  const cleaned = token.toLowerCase();
+  if (cleaned.length > 4 && cleaned.endsWith('es')) return cleaned.slice(0, -2);
+  if (cleaned.length > 3 && cleaned.endsWith('s')) return cleaned.slice(0, -1);
+  return cleaned;
+}
+
 function significantTokens(text) {
   return cleanSearchTerm(text)
     .toLowerCase()
     .split(/\s+/)
+    .map(normalizeToken)
     .filter((token) => token.length > 2 && !STOP_WORDS.has(token));
 }
 
