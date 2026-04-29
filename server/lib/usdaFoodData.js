@@ -128,16 +128,22 @@ async function searchUsdaFood(query, { apiKey, fetchImpl = fetch } = {}) {
     api_key: apiKey,
     query: cleaned,
     pageSize: '8',
-    dataType: ['Foundation', 'SR Legacy', 'Survey (FNDDS)'].join(','),
   });
 
   const response = await fetchImpl(`${USDA_SEARCH_URL}?${params.toString()}`);
   if (!response.ok) {
-    throw new Error(`USDA API error: ${response.status}`);
+    const body = typeof response.text === 'function' ? await response.text() : '';
+    throw new Error(`USDA API error: ${response.status}${body ? ` ${body.slice(0, 160)}` : ''}`);
   }
 
   const data = await response.json();
-  return chooseBestUsdaFood(cleaned, data?.foods);
+  const match = chooseBestUsdaFood(cleaned, data?.foods);
+  if (match) {
+    console.log(`USDA match: "${cleaned}" -> "${match.description}"`);
+  } else {
+    console.log(`USDA no match: "${cleaned}"`);
+  }
+  return match;
 }
 
 async function enrichItemWithUsda(item, options) {
