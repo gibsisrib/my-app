@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const {
   applyUsdaNutrition,
   chooseBestUsdaFood,
+  simplifyMixedFoodQuery,
   scaleNutrients,
 } = require('./usdaFoodData');
 
@@ -39,6 +40,17 @@ const oliveOilFood = {
     { nutrientNumber: '1003', nutrientName: 'Protein', value: 0 },
     { nutrientNumber: '1005', nutrientName: 'Carbohydrate, by difference', value: 0 },
     { nutrientNumber: '1004', nutrientName: 'Total lipid (fat)', value: 100 },
+  ],
+};
+
+const pineapplePizzaFood = {
+  fdcId: 987,
+  description: 'Pizza with pineapple and ham, regular crust',
+  foodNutrients: [
+    { nutrientNumber: '1008', nutrientName: 'Energy', value: 250 },
+    { nutrientNumber: '1003', nutrientName: 'Protein', value: 11 },
+    { nutrientNumber: '1005', nutrientName: 'Carbohydrate, by difference', value: 30 },
+    { nutrientNumber: '1004', nutrientName: 'Total lipid (fat)', value: 10 },
   ],
 };
 
@@ -140,5 +152,40 @@ describe('USDA FoodData helpers', () => {
   it('allows oil queries to match actual oil foods', () => {
     const match = chooseBestUsdaFood('olive oil', [hashBrownFood, oliveOilFood]);
     assert.equal(match.description, 'Oil, olive, salad or cooking');
+  });
+
+  it('simplifies mixed pizza labels into USDA-searchable terms', () => {
+    assert.equal(simplifyMixedFoodQuery('Meat and pineapple pizza slices'), 'pineapple pizza');
+  });
+
+  it('uses simplified mixed-food labels while preserving total portion grams', async () => {
+    const payload = {
+      type: 'meal',
+      items: [
+        {
+          food: 'Meat and pineapple pizza slices',
+          portion: '2 slices, ~220g total',
+          portionGrams: 220,
+          calories: 999,
+          protein: 1,
+          carbs: 1,
+          fats: 1,
+        },
+      ],
+    };
+
+    const enriched = await applyUsdaNutrition(payload, {
+      apiKey: 'test-key',
+      fetchImpl: async () => ({
+        ok: true,
+        json: async () => ({ foods: [pineapplePizzaFood] }),
+      }),
+    });
+
+    assert.equal(enriched.items[0].source, 'usda_fooddata_central');
+    assert.equal(enriched.items[0].calories, 550);
+    assert.equal(enriched.items[0].protein, 24);
+    assert.equal(enriched.items[0].carbs, 66);
+    assert.equal(enriched.items[0].fats, 22);
   });
 });

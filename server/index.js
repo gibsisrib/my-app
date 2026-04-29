@@ -79,6 +79,7 @@ const MEAL_ANALYSIS_JSON_INSTRUCTION = `Return ONLY a single JSON object (no mar
 
 Rules for "items":
 - Include EVERY separate food or drink you can identify in the image or description: protein, starch, vegetables, bread, cheese, sauces, oil, butter, condiments, beverages in frame, etc.
+- For mixed prepared foods that are normally logged as one item (pizza, burritos, burgers, sandwiches, casseroles, pasta dishes), keep the whole prepared food as one item unless major sides are separate. Use a USDA-searchable "food" label such as "pineapple pizza", "pepperoni pizza", "cheeseburger", or "chicken burrito"; put extra detail like "2 slices" in "portion".
 - If you see multiple identical pieces (two chicken breasts, three slices of toast), put that in "portion" and scale that row's calories and macros for ALL of them — do not default to a single serving.
 - If the whole photo is only one food repeated (e.g. two similar chicken breasts, no rice or vegetables), use ONE "items" row whose "portion" states the exact count (e.g. "2 boneless breasts visible, ~6 oz each") and whose macros are for BOTH pieces combined — never imply a single piece in the name while doubling protein.
 - Visible pooled oil or butter on the plate: either include fat in the meat row and mention oil in "portion", or add a second tiny row for "Pan juices / oil" so fats are not wildly under-counted.

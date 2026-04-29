@@ -38,6 +38,17 @@ const STOP_WORDS = new Set([
 
 const OIL_TERMS = new Set(['oil', 'butter', 'fat', 'grease']);
 const SAUCE_TERMS = new Set(['sauce', 'dressing', 'gravy', 'juice', 'juices', 'pan']);
+const MIXED_FOOD_KEYWORDS = [
+  'pizza',
+  'burger',
+  'sandwich',
+  'burrito',
+  'taco',
+  'quesadilla',
+  'pasta',
+  'lasagna',
+  'casserole',
+];
 
 function clampNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -58,8 +69,33 @@ function cleanSearchTerm(food) {
     .slice(0, 80);
 }
 
+function simplifyMixedFoodQuery(food) {
+  const cleaned = cleanSearchTerm(food).toLowerCase();
+  const tokens = significantTokens(cleaned);
+  const keyword = MIXED_FOOD_KEYWORDS.find((term) => tokens.includes(term));
+  if (!keyword) return cleaned;
+
+  const ignoredMixedFoodTokens = new Set([
+    'slice',
+    'piece',
+    'meat',
+    'mixed',
+    'topping',
+  ]);
+  const usefulModifiers = tokens.filter(
+    (token) =>
+      token !== keyword &&
+      !ignoredMixedFoodTokens.has(token)
+  );
+  const modifiers = usefulModifiers.slice(0, 2).join(' ');
+  return modifiers ? `${modifiers} ${keyword}` : keyword;
+}
+
 function normalizeToken(token) {
   const cleaned = token.toLowerCase();
+  if (cleaned === 'slices') return 'slice';
+  if (cleaned === 'pieces') return 'piece';
+  if (cleaned.endsWith('ies') && cleaned.length > 4) return `${cleaned.slice(0, -3)}y`;
   if (cleaned.length > 4 && cleaned.endsWith('es')) return cleaned.slice(0, -2);
   if (cleaned.length > 3 && cleaned.endsWith('s')) return cleaned.slice(0, -1);
   return cleaned;
@@ -173,7 +209,7 @@ function chooseBestUsdaFood(query, foods) {
 
 async function searchUsdaFood(query, { apiKey, fetchImpl = fetch } = {}) {
   if (!apiKey) return null;
-  const cleaned = cleanSearchTerm(query);
+  const cleaned = simplifyMixedFoodQuery(query);
   if (!cleaned) return null;
 
   const params = new URLSearchParams({
@@ -242,6 +278,7 @@ async function applyUsdaNutrition(data, options = {}) {
 
 module.exports = {
   cleanSearchTerm,
+  simplifyMixedFoodQuery,
   chooseBestUsdaFood,
   nutrientsPer100g,
   scaleNutrients,
