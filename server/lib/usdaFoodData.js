@@ -91,6 +91,24 @@ function simplifyMixedFoodQuery(food) {
   return modifiers ? `${modifiers} ${keyword}` : keyword;
 }
 
+function mixedFoodSearchVariants(food) {
+  const cleaned = cleanSearchTerm(food).toLowerCase();
+  const simplified = simplifyMixedFoodQuery(cleaned);
+  const tokens = significantTokens(cleaned);
+  const keyword = MIXED_FOOD_KEYWORDS.find((term) => tokens.includes(term));
+  if (!keyword) return [simplified];
+
+  const modifiers = simplified
+    .split(/\s+/)
+    .filter((token) => token && token !== keyword);
+  const variants = [simplified];
+  for (const modifier of modifiers) {
+    variants.push(`${modifier} ${keyword}`);
+  }
+  variants.push(keyword);
+  return [...new Set(variants)];
+}
+
 function normalizeToken(token) {
   const cleaned = token.toLowerCase();
   if (cleaned === 'slices') return 'slice';
@@ -207,11 +225,7 @@ function chooseBestUsdaFood(query, foods) {
   return candidates[0] || null;
 }
 
-async function searchUsdaFood(query, { apiKey, fetchImpl = fetch } = {}) {
-  if (!apiKey) return null;
-  const cleaned = simplifyMixedFoodQuery(query);
-  if (!cleaned) return null;
-
+async function fetchUsdaCandidates(cleaned, { apiKey, fetchImpl }) {
   const params = new URLSearchParams({
     api_key: apiKey,
     query: cleaned,
@@ -225,13 +239,25 @@ async function searchUsdaFood(query, { apiKey, fetchImpl = fetch } = {}) {
   }
 
   const data = await response.json();
-  const match = chooseBestUsdaFood(cleaned, data?.foods);
-  if (match) {
-    console.log(`USDA match: "${cleaned}" -> "${match.description}"`);
-  } else {
+  return data?.foods;
+}
+
+async function searchUsdaFood(query, { apiKey, fetchImpl = fetch } = {}) {
+  if (!apiKey) return null;
+  const variants = mixedFoodSearchVariants(query).filter(Boolean);
+  if (variants.length === 0) return null;
+
+  for (const cleaned of variants) {
+    const foods = await fetchUsdaCandidates(cleaned, { apiKey, fetchImpl });
+    const match = chooseBestUsdaFood(cleaned, foods);
+    if (match) {
+      console.log(`USDA match: "${cleaned}" -> "${match.description}"`);
+      return match;
+    }
     console.log(`USDA no match: "${cleaned}"`);
   }
-  return match;
+
+  return null;
 }
 
 async function enrichItemWithUsda(item, options) {
@@ -279,6 +305,7 @@ async function applyUsdaNutrition(data, options = {}) {
 module.exports = {
   cleanSearchTerm,
   simplifyMixedFoodQuery,
+  mixedFoodSearchVariants,
   chooseBestUsdaFood,
   nutrientsPer100g,
   scaleNutrients,

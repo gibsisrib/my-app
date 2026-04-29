@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const {
   applyUsdaNutrition,
   chooseBestUsdaFood,
+  mixedFoodSearchVariants,
   simplifyMixedFoodQuery,
   scaleNutrients,
 } = require('./usdaFoodData');
@@ -158,6 +159,15 @@ describe('USDA FoodData helpers', () => {
     assert.equal(simplifyMixedFoodQuery('Meat and pineapple pizza slices'), 'pineapple pizza');
   });
 
+  it('creates mixed-food search fallbacks from specific to broad', () => {
+    assert.deepEqual(mixedFoodSearchVariants('pineapple ham pizza'), [
+      'pineapple ham pizza',
+      'pineapple pizza',
+      'ham pizza',
+      'pizza',
+    ]);
+  });
+
   it('uses simplified mixed-food labels while preserving total portion grams', async () => {
     const payload = {
       type: 'meal',
@@ -187,5 +197,41 @@ describe('USDA FoodData helpers', () => {
     assert.equal(enriched.items[0].protein, 24);
     assert.equal(enriched.items[0].carbs, 66);
     assert.equal(enriched.items[0].fats, 22);
+  });
+
+  it('falls back to broader mixed-food USDA searches', async () => {
+    const payload = {
+      type: 'meal',
+      items: [
+        {
+          food: 'pineapple ham pizza',
+          portion: '2 slices, ~220g total',
+          portionGrams: 220,
+          calories: 999,
+          protein: 1,
+          carbs: 1,
+          fats: 1,
+        },
+      ],
+    };
+    const queries = [];
+
+    const enriched = await applyUsdaNutrition(payload, {
+      apiKey: 'test-key',
+      fetchImpl: async (url) => {
+        const query = new URL(url).searchParams.get('query');
+        queries.push(query);
+        return {
+          ok: true,
+          json: async () => ({
+            foods: query === 'pizza' ? [pineapplePizzaFood] : [],
+          }),
+        };
+      },
+    });
+
+    assert.deepEqual(queries, ['pineapple ham pizza', 'pineapple pizza', 'ham pizza', 'pizza']);
+    assert.equal(enriched.items[0].source, 'usda_fooddata_central');
+    assert.equal(enriched.items[0].calories, 550);
   });
 });
