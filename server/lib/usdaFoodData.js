@@ -26,6 +26,9 @@ const STOP_WORDS = new Set([
   'serving',
 ]);
 
+const OIL_TERMS = new Set(['oil', 'butter', 'fat', 'grease']);
+const SAUCE_TERMS = new Set(['sauce', 'dressing', 'gravy', 'juice', 'juices', 'pan']);
+
 function clampNumber(value, fallback = 0) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) return fallback;
@@ -57,6 +60,36 @@ function tokenOverlapScore(query, candidate) {
   const candidateText = cleanSearchTerm(candidate).toLowerCase();
   const matches = queryTokens.filter((token) => candidateText.includes(token)).length;
   return matches / queryTokens.length;
+}
+
+function hasAnyToken(tokens, lookup) {
+  return tokens.some((token) => lookup.has(token));
+}
+
+function isAllowedSpecialMatch(queryTokens, candidateText) {
+  const candidate = candidateText.toLowerCase();
+  const queryMentionsOil = hasAnyToken(queryTokens, OIL_TERMS);
+  const queryMentionsSauce = hasAnyToken(queryTokens, SAUCE_TERMS);
+
+  if (queryMentionsOil) {
+    return /\b(oil|butter|fat|margarine|shortening)\b/.test(candidate);
+  }
+
+  if (queryMentionsSauce) {
+    return /\b(sauce|dressing|gravy|broth|stock|juice|juices)\b/.test(candidate);
+  }
+
+  return true;
+}
+
+function isConfidentUsdaMatch(query, candidate, score) {
+  const queryTokens = significantTokens(query);
+  const candidateText = cleanSearchTerm(candidate).toLowerCase();
+  if (queryTokens.length === 0) return false;
+  if (!isAllowedSpecialMatch(queryTokens, candidateText)) return false;
+
+  const threshold = queryTokens.length <= 2 ? 0.75 : 0.67;
+  return score >= threshold;
 }
 
 function getNutrientValue(food, aliases) {
@@ -113,7 +146,7 @@ function chooseBestUsdaFood(query, foods) {
         score: tokenOverlapScore(query, description),
       };
     })
-    .filter((candidate) => candidate.per100g && candidate.score >= 0.45)
+    .filter((candidate) => candidate.per100g && isConfidentUsdaMatch(query, candidate.description, candidate.score))
     .sort((a, b) => b.score - a.score);
 
   return candidates[0] || null;

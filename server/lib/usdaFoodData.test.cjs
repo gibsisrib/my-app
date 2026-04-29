@@ -19,6 +19,23 @@ const grilledChickenFood = {
   ],
 };
 
+const hashBrownFood = {
+  fdcId: 456,
+  description: 'Potatoes, hash brown, refrigerated, prepared, pan-fried in canola oil',
+  foodNutrients: grilledChickenFood.foodNutrients,
+};
+
+const oliveOilFood = {
+  fdcId: 789,
+  description: 'Oil, olive, salad or cooking',
+  foodNutrients: [
+    { nutrientNumber: '1008', nutrientName: 'Energy', value: 884 },
+    { nutrientNumber: '1003', nutrientName: 'Protein', value: 0 },
+    { nutrientNumber: '1005', nutrientName: 'Carbohydrate, by difference', value: 0 },
+    { nutrientNumber: '1004', nutrientName: 'Total lipid (fat)', value: 100 },
+  ],
+};
+
 describe('USDA FoodData helpers', () => {
   it('chooses a matching USDA food with complete nutrients', () => {
     const match = chooseBestUsdaFood('grilled chicken breast', [
@@ -77,5 +94,15 @@ describe('USDA FoodData helpers', () => {
     };
 
     assert.deepEqual(await applyUsdaNutrition(payload), payload);
+  });
+
+  it('rejects ambiguous pan juice matches to unrelated pan-fried foods', () => {
+    const match = chooseBestUsdaFood('pan juices oil', [hashBrownFood]);
+    assert.equal(match, null);
+  });
+
+  it('allows oil queries to match actual oil foods', () => {
+    const match = chooseBestUsdaFood('olive oil', [hashBrownFood, oliveOilFood]);
+    assert.equal(match.description, 'Oil, olive, salad or cooking');
   });
 });
