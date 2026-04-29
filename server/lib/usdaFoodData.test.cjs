@@ -155,15 +155,12 @@ describe('USDA FoodData helpers', () => {
     assert.equal(match.description, 'Oil, olive, salad or cooking');
   });
 
-  it('simplifies mixed pizza labels into USDA-searchable terms', () => {
-    assert.equal(simplifyMixedFoodQuery('Meat and pineapple pizza slices'), 'pineapple pizza');
+  it('simplifies mixed pizza labels into a common USDA-searchable term', () => {
+    assert.equal(simplifyMixedFoodQuery('Meat and pineapple pizza slices'), 'pizza');
   });
 
-  it('creates mixed-food search fallbacks from specific to broad', () => {
+  it('uses broad common terms first for mixed-food searches', () => {
     assert.deepEqual(mixedFoodSearchVariants('pineapple ham pizza'), [
-      'pineapple ham pizza',
-      'pineapple pizza',
-      'ham pizza',
       'pizza',
     ]);
   });
@@ -199,7 +196,7 @@ describe('USDA FoodData helpers', () => {
     assert.equal(enriched.items[0].fats, 22);
   });
 
-  it('falls back to broader mixed-food USDA searches', async () => {
+  it('uses broad mixed-food USDA searches for more reliable matching', async () => {
     const payload = {
       type: 'meal',
       items: [
@@ -230,8 +227,12 @@ describe('USDA FoodData helpers', () => {
       },
     });
 
-    assert.deepEqual(queries, ['pineapple ham pizza', 'pineapple pizza', 'ham pizza', 'pizza']);
+    assert.deepEqual(queries, ['pizza']);
     assert.equal(enriched.items[0].source, 'usda_fooddata_central');
     assert.equal(enriched.items[0].calories, 550);
+  });
+
+  it('does not collapse specific sandwiches into generic sandwich searches', () => {
+    assert.equal(simplifyMixedFoodQuery('grilled cheese sandwich'), 'grilled cheese sandwich');
   });
 });

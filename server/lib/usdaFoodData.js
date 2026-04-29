@@ -41,7 +41,6 @@ const SAUCE_TERMS = new Set(['sauce', 'dressing', 'gravy', 'juice', 'juices', 'p
 const MIXED_FOOD_KEYWORDS = [
   'pizza',
   'burger',
-  'sandwich',
   'burrito',
   'taco',
   'quesadilla',
@@ -49,6 +48,7 @@ const MIXED_FOOD_KEYWORDS = [
   'lasagna',
   'casserole',
 ];
+const GENERIC_MIXED_FOOD_KEYWORDS = new Set(['pizza', 'burger', 'burrito', 'taco', 'quesadilla', 'pasta', 'lasagna', 'casserole']);
 
 function clampNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -74,6 +74,7 @@ function simplifyMixedFoodQuery(food) {
   const tokens = significantTokens(cleaned);
   const keyword = MIXED_FOOD_KEYWORDS.find((term) => tokens.includes(term));
   if (!keyword) return cleaned;
+  if (GENERIC_MIXED_FOOD_KEYWORDS.has(keyword)) return keyword;
 
   const ignoredMixedFoodTokens = new Set([
     'slice',
