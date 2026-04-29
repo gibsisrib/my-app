@@ -21,6 +21,7 @@ const {
   applyAtwaterReconciliation,
   applyFoodBallparkSanity,
 } = require('./lib/nutritionNormalize');
+const { applyUsdaNutrition } = require('./lib/usdaFoodData');
 
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_WINDOW = 30;
@@ -67,6 +68,7 @@ const MEAL_ANALYSIS_JSON_INSTRUCTION = `Return ONLY a single JSON object (no mar
     {
       "food": "Short label, e.g. Grilled chicken breast",
       "portion": "Be specific: counts, visible size, e.g. '2 pieces visible, ~6 oz each' or '~1 cup cooked rice'",
+      "portionGrams": 0,
       "calories": 0,
       "protein": 0,
       "carbs": 0,
@@ -80,6 +82,7 @@ Rules for "items":
 - If you see multiple identical pieces (two chicken breasts, three slices of toast), put that in "portion" and scale that row's calories and macros for ALL of them — do not default to a single serving.
 - If the whole photo is only one food repeated (e.g. two similar chicken breasts, no rice or vegetables), use ONE "items" row whose "portion" states the exact count (e.g. "2 boneless breasts visible, ~6 oz each") and whose macros are for BOTH pieces combined — never imply a single piece in the name while doubling protein.
 - Visible pooled oil or butter on the plate: either include fat in the meat row and mention oil in "portion", or add a second tiny row for "Pan juices / oil" so fats are not wildly under-counted.
+- "portionGrams" is the estimated edible weight in grams for THAT row only. Use a realistic whole number. For count-based foods, estimate the total gram weight for all visible pieces in that row.
 - Each row's calories and macros are for THAT component only. Use whole numbers ≥ 0.
 
 Macro sanity (avoid impossible numbers):
@@ -150,7 +153,7 @@ ${MEAL_ANALYSIS_JSON_INSTRUCTION}`;
   const result = await response.json();
   const content = result?.choices?.[0]?.message?.content;
   if (!content) throw new Error('OpenAI returned empty response.');
-  return normalizeAiPayload(parseJsonFromAiContent(content));
+  return parseJsonFromAiContent(content);
 }
 
 async function analyzeMealGemini({ imageBase64, description }, apiKey) {
@@ -208,7 +211,7 @@ ${MEAL_ANALYSIS_JSON_INSTRUCTION}`;
   const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('Gemini returned empty response.');
   const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-  return normalizeAiPayload(parseJsonFromAiContent(jsonStr));
+  return parseJsonFromAiContent(jsonStr);
 }
 
 async function runAnalyzeMeal({ imageBase64, description }) {
@@ -223,7 +226,12 @@ async function runAnalyzeMeal({ imageBase64, description }) {
     ? await analyzeMealOpenAI({ imageBase64, description }, openaiKey)
     : await analyzeMealGemini({ imageBase64, description }, geminiKey);
 
-  const reconciled = applyAtwaterReconciliation(raw);
+  const sourced = await applyUsdaNutrition(raw, {
+    apiKey: process.env.USDA_API_KEY,
+    fetchImpl: fetch,
+  });
+  const normalized = normalizeAiPayload(sourced);
+  const reconciled = applyAtwaterReconciliation(normalized);
   return applyFoodBallparkSanity(reconciled, { description });
 }
 

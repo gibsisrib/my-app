@@ -24,7 +24,7 @@ function RootLayoutContent() {
 
   if (!isLoaded) return null;
 
-  if (!userData?.profileCompleted && segments[0] !== 'profile-onboarding') {
+  if (!userData?.profileCompleted && segments[0] !== 'profile-onboarding' && segments[0] !== 'health-disclaimer') {
     return <Redirect href="/profile-onboarding" />;
   }
 
@@ -33,6 +33,7 @@ function RootLayoutContent() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="profile-onboarding" />
+        <Stack.Screen name="health-disclaimer" />
         <Stack.Screen name="add-meal" />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>

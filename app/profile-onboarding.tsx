@@ -174,6 +174,10 @@ export default function ProfileOnboarding() {
           <TouchableOpacity style={styles.primaryButton} onPress={handleStartTracking}>
             <Text style={styles.primaryButtonText}>Start tracking</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity style={styles.disclaimerLink} onPress={() => router.push('/health-disclaimer')}>
+            <Text style={styles.disclaimerLinkText}>Health disclaimer & sources</Text>
+          </TouchableOpacity>
         </Animated.View>
       </ScrollView>
     );
@@ -692,6 +696,16 @@ const styles = StyleSheet.create({
     fontFamily: RoseTheme.fonts.bold,
     fontSize: 18,
     color: 'white',
+  },
+  disclaimerLink: {
+    marginTop: 18,
+    paddingVertical: 8,
+  },
+  disclaimerLinkText: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 14,
+    color: RoseTheme.colors.primaryDeep,
+    textDecorationLine: 'underline',
   },
   backButton: {
     flex: 1,

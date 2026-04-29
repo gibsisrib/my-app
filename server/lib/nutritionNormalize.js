@@ -37,6 +37,7 @@ function normalizeAiPayload(data) {
     const protein = sumMealItemField(usableItems, 'protein');
     const carbs = sumMealItemField(usableItems, 'carbs');
     const fats = sumMealItemField(usableItems, 'fats');
+    const hasUsdaSource = usableItems.some((row) => row?.source === 'usda_fooddata_central');
     let name =
       typeof data?.name === 'string' && data.name.trim()
         ? data.name.trim()
@@ -53,7 +54,15 @@ function normalizeAiPayload(data) {
     if (name.length > 240) {
       name = `${name.slice(0, 237)}…`;
     }
-    return { name, calories, protein, carbs, fats, type };
+    return {
+      name,
+      calories,
+      protein,
+      carbs,
+      fats,
+      type,
+      nutritionSource: hasUsdaSource ? 'usda_fooddata_central_with_ai_portion_estimates' : data?.nutritionSource,
+    };
   }
 
   return {

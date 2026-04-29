@@ -97,6 +97,16 @@ export default function ProfileScreen() {
         <Text style={styles.subtitle}>Tweak your stats & goals anytime, bestie</Text>
       </View>
 
+      <TouchableOpacity style={styles.disclaimerCard} onPress={() => router.push('/health-disclaimer')}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.disclaimerTitle}>Health Disclaimer & Sources</Text>
+          <Text style={styles.disclaimerText}>
+            Review how calorie goals are estimated, source links, and important AI accuracy notes.
+          </Text>
+        </View>
+        <Text style={styles.disclaimerArrow}>›</Text>
+      </TouchableOpacity>
+
       <View style={styles.card}>
         <View style={styles.row}>
           <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
@@ -255,6 +265,9 @@ export default function ProfileScreen() {
             goalType === 'gain' ? 'A 250 kcal surplus results in ~0.5 lb of weight gain per week.' :
               'Eating at maintenance keeps your weight stable.'}
         </Text>
+        <TouchableOpacity style={styles.inlineDisclaimerLink} onPress={() => router.push('/health-disclaimer')}>
+          <Text style={styles.inlineDisclaimerText}>View calculation sources and medical disclaimer</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Weight Log Section */}
@@ -346,6 +359,34 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 2,
     borderColor: RoseTheme.colors.borderLight,
+  },
+  disclaimerCard: {
+    backgroundColor: RoseTheme.colors.cardWhite,
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 18,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  disclaimerTitle: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 16,
+    color: RoseTheme.colors.primaryDeep,
+  },
+  disclaimerText: {
+    fontFamily: RoseTheme.fonts.medium,
+    fontSize: 13,
+    color: RoseTheme.colors.textMuted,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  disclaimerArrow: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 30,
+    color: RoseTheme.colors.primary,
   },
   inputGroup: {
     marginBottom: 20,
@@ -465,6 +506,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: RoseTheme.colors.textMuted,
     marginTop: 8,
+  },
+  inlineDisclaimerLink: {
+    marginTop: 14,
+    paddingVertical: 4,
+  },
+  inlineDisclaimerText: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 13,
+    color: RoseTheme.colors.primaryDeep,
+    textDecorationLine: 'underline',
   },
   logButton: {
     backgroundColor: RoseTheme.colors.primary,
