@@ -70,16 +70,16 @@ export default function HealthDisclaimerScreen() {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>AI estimates can be wrong</Text>
         <Text style={styles.bodyText}>
-          Food photo scanning and text estimates use AI to identify foods and estimate portions. When
-          available, nutrition values may be matched against USDA FoodData Central; otherwise the app
-          uses AI-generated estimates. Both methods may still be inaccurate. Portion size,
-          ingredients, cooking oils, sauces, brands, and preparation methods can significantly change
-          calories and macros.
+          Food photo scanning and text estimates use AI to identify foods and estimate portions. The
+          app first tries to match foods with nutrition data from USDA FoodData Central when a
+          reliable match is available.
         </Text>
         <Text style={styles.bodyText}>
-          Please review and edit results before saving them. For the most accurate food calorie and
-          macro information, verify entries with nutrition labels, restaurant nutrition information,
-          or authoritative references such as USDA FoodData Central.
+          When a USDA match cannot be found, the app makes its best estimate using AI. AI estimates
+          can be inaccurate, and portion size, ingredients, cooking oils, sauces, brands, and
+          preparation methods can significantly change calories and macros. Please review and edit
+          results before saving them, and verify important entries with nutrition labels, restaurant
+          nutrition information, or authoritative references such as USDA FoodData Central.
         </Text>
       </View>
 
