@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Baby Girl Tracker",
+    "name": "Cutie's Calorie Counter",
     "slug": "baby-girl-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,6 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.gibsisrib.babygirltracker",
       "infoPlist": {
+        "CFBundleDisplayName": "Cutie's Calorie Counter",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
