@@ -22,6 +22,15 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "C:/Users/Owner/Downloads/cuties-calorie-counter-494606-162a25141eac.json",
+        "track": "alpha",
+        "releaseStatus": "completed"
+      },
+      "ios": {
+        "ascAppId": "6763739422"
+      }
+    }
   }
 }
