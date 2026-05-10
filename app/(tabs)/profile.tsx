@@ -1,10 +1,12 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { Scale, Sparkles, Trash2 } from 'lucide-react-native';
+import { Heart, Scale, Sparkles, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useCalories } from '../../CaloriesContext';
 import { RoseTheme } from '../../constants/RoseTheme';
+import { rateApp, resetRatingPromptState } from '../../utils/storeReview';
+import { resetWelcomeTour } from '../../utils/welcomeTour';
 
 export default function ProfileScreen() {
   const { userData, updateUserData, weights, addWeight, deleteWeight, tdee, targetCalories } = useCalories();
@@ -102,6 +104,25 @@ export default function ProfileScreen() {
           <Text style={styles.disclaimerTitle}>Health Disclaimer & Sources</Text>
           <Text style={styles.disclaimerText}>
             Review how calorie goals are estimated, source links, and important AI accuracy notes.
+          </Text>
+        </View>
+        <Text style={styles.disclaimerArrow}>›</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.rateCard}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          rateApp();
+        }}
+      >
+        <View style={styles.rateIconWrap}>
+          <Heart size={20} color={RoseTheme.colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.disclaimerTitle}>Rate Cutie&apos;s Calorie Counter</Text>
+          <Text style={styles.disclaimerText}>
+            Loving the app? A quick rating helps other cuties find us 🎀
           </Text>
         </View>
         <Text style={styles.disclaimerArrow}>›</Text>
@@ -322,6 +343,52 @@ export default function ProfileScreen() {
       >
         <Text style={[styles.saveButtonText, { color: '#ef4444' }]}>Log Out</Text>
       </TouchableOpacity>
+
+      {__DEV__ && (
+        <View style={[styles.card, { marginTop: 24, borderColor: '#fcd34d', backgroundColor: '#fffbeb' }]}>
+          <Text style={[styles.sectionTitle, { color: '#92400e' }]}>Dev tools 🛠️</Text>
+          <Text style={[styles.projectionSubtext, { marginTop: 4, marginBottom: 12 }]}>
+            Only visible in development builds. Use these to retest the welcome tour and rating
+            prompt without uninstalling the app.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.devButton}
+            onPress={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              await resetWelcomeTour();
+              router.replace({ pathname: '/', params: { devTour: '1' } });
+            }}
+          >
+            <Text style={styles.devButtonText}>Show welcome tour now</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.devButton}
+            onPress={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              await resetRatingPromptState();
+              router.replace({ pathname: '/', params: { devRating: '1' } });
+            }}
+          >
+            <Text style={styles.devButtonText}>Show rating prompt now</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.devButton}
+            onPress={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              await resetWelcomeTour();
+              await resetRatingPromptState();
+              alert(
+                'Welcome tour and rating prompt state cleared. They will fire on the next eligible Home focus.'
+              );
+            }}
+          >
+            <Text style={styles.devButtonText}>Reset both (no force-show)</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -387,6 +454,25 @@ const styles = StyleSheet.create({
     fontFamily: RoseTheme.fonts.bold,
     fontSize: 30,
     color: RoseTheme.colors.primary,
+  },
+  rateCard: {
+    backgroundColor: RoseTheme.colors.cardWhite,
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 18,
+    borderWidth: 2,
+    borderColor: RoseTheme.colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  rateIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: RoseTheme.colors.iconBackground,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inputGroup: {
     marginBottom: 20,
@@ -554,5 +640,20 @@ const styles = StyleSheet.create({
   lbsText: {
     fontSize: 12,
     color: RoseTheme.colors.textMuted,
-  }
+  },
+  devButton: {
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fde68a',
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    marginTop: 8,
+  },
+  devButtonText: {
+    fontFamily: RoseTheme.fonts.bold,
+    fontSize: 14,
+    color: '#92400e',
+  },
 });

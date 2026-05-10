@@ -1,13 +1,22 @@
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, ChevronRight, Droplet, Edit2, Flame, Star, Trash2 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useCalories } from '../../CaloriesContext';
 import { RoseTheme } from '../../constants/RoseTheme';
+import RatingPrompt from '../../components/RatingPrompt';
+import WelcomeTour from '../../components/WelcomeTour';
+import {
+  markPromptShown,
+  rateApp,
+  setPromptResponse,
+  shouldShowSmartPrompt,
+} from '../../utils/storeReview';
+import { hasSeenWelcomeTour, markWelcomeTourSeen } from '../../utils/welcomeTour';
 
 export default function HomeScreen() {
   const {
@@ -15,8 +24,11 @@ export default function HomeScreen() {
     currentStreak, addFavorite, todayWater, setWater,
     selectedDate, changeDate, getTodayString,
     consumedProtein, consumedCarbs, consumedFats, userData,
-    dogImage, tdee, targetCalories
+    dogImage, tdee, targetCalories,
+    entries, isLoaded,
   } = useCalories();
+
+  const params = useLocalSearchParams<{ devRating?: string; devTour?: string }>();
 
   const goal = targetCalories || 2200;
   const remaining = goal - consumed;
@@ -26,6 +38,8 @@ export default function HomeScreen() {
 
   const [showConfetti, setShowConfetti] = useState(false);
   const [waterConfettiKey, setWaterConfettiKey] = useState(0);
+  const [showWelcomeTour, setShowWelcomeTour] = useState(false);
+  const [showRatingPrompt, setShowRatingPrompt] = useState(false);
   const animatedWidth = useSharedValue(0);
 
   useEffect(() => {
@@ -51,6 +65,71 @@ export default function HomeScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   }, [todayWater]);
+
+  // Re-check the welcome tour and rating prompt every time Home comes into
+  // focus. This keeps things working even when navigating from Profile after
+  // a dev-tools reset, since the Home screen stays mounted across tab swaps.
+  useFocusEffect(
+    useCallback(() => {
+      if (!isLoaded) return;
+      if (!userData?.profileCompleted) return;
+
+      // Dev-only overrides via search params (?devTour=1 / ?devRating=1).
+      if (__DEV__ && params.devTour === '1') {
+        setShowWelcomeTour(true);
+        router.setParams({ devTour: undefined });
+        return;
+      }
+      if (__DEV__ && params.devRating === '1') {
+        setShowRatingPrompt(true);
+        router.setParams({ devRating: undefined });
+        return;
+      }
+
+      let cancelled = false;
+      (async () => {
+        const seen = await hasSeenWelcomeTour();
+        if (cancelled) return;
+        if (!seen) {
+          setShowWelcomeTour(true);
+          return;
+        }
+        const totalEntries = Array.isArray(entries) ? entries.length : 0;
+        const should = await shouldShowSmartPrompt({
+          streakDays: currentStreak,
+          totalMealEntries: totalEntries,
+        });
+        if (!cancelled && should) {
+          setShowRatingPrompt(true);
+          await markPromptShown();
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [isLoaded, userData?.profileCompleted, currentStreak, entries, params.devRating, params.devTour])
+  );
+
+  const handleCloseWelcomeTour = () => {
+    setShowWelcomeTour(false);
+    markWelcomeTourSeen();
+  };
+
+  const handleRatingLove = async () => {
+    setShowRatingPrompt(false);
+    await setPromptResponse('rated');
+    await rateApp();
+  };
+
+  const handleRatingNotReally = async () => {
+    setShowRatingPrompt(false);
+    await setPromptResponse('dismissed');
+  };
+
+  const handleRatingLater = async () => {
+    setShowRatingPrompt(false);
+    await setPromptResponse('later');
+  };
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -86,6 +165,13 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <WelcomeTour visible={showWelcomeTour} onClose={handleCloseWelcomeTour} />
+      <RatingPrompt
+        visible={showRatingPrompt}
+        onLove={handleRatingLove}
+        onNotReally={handleRatingNotReally}
+        onLater={handleRatingLater}
+      />
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -94,15 +180,15 @@ export default function HomeScreen() {
         </View>
         <View style={styles.headerRight}>
           <View style={styles.streakBadge}>
-            <Flame size={16} color={RoseTheme.colors.streakFire} />
+            <Flame size={28} color={RoseTheme.colors.streakFire} />
             <Text style={styles.streakText}>{currentStreak}</Text>
           </View>
           <TouchableOpacity 
             onPress={() => router.push('/progress')}
             style={{
-              width: 52,
-              height: 52,
-              borderRadius: 26,
+              width: 80,
+              height: 80,
+              borderRadius: 40,
               overflow: 'hidden',
               borderWidth: 3,
               borderColor: RoseTheme.colors.cardWhite,
@@ -405,7 +491,7 @@ const styles = StyleSheet.create({
   },
   streakText: {
     fontFamily: RoseTheme.fonts.bold,
-    fontSize: 14,
+    fontSize: 22,
     color: RoseTheme.colors.ribbon,
   },
   dogAvatar: {
